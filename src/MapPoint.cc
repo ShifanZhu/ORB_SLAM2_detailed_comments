@@ -389,7 +389,7 @@ void MapPoint::ComputeDistinctiveDescriptors()
         // mit->second取该地图点在关键帧中的索引
         KeyFrame* pKF = mit->first;
 
-        if(!pKF->isBad())        
+        if(!pKF->isBad()) // 查询当前地图点是否被删除（本质上就是查询mbBad）       
             // 取对应的描述子向量                                               
             vDescriptors.push_back(pKF->mDescriptors.row(mit->second));     
     }
@@ -487,7 +487,10 @@ bool MapPoint::IsInKeyFrame(KeyFrame *pKF)
 
 /**
  * @brief 更新地图点的平均观测方向、观测距离范围
- *
+ * 其中平均观测方向是根据mObservations中所有观测到本地图点的关键帧取平均得到的
+ * 平均观测距离是根据参考关键帧得到的
+ * 
+ * 只要地图点本身或关键帧对该地图点的观测发生了变化，就应该调用该函数
  */
 void MapPoint::UpdateNormalAndDepth()
 {

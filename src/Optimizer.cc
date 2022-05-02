@@ -1197,6 +1197,7 @@ void Optimizer::OptimizeEssentialGraph(Map* pMap, KeyFrame* pLoopKF, KeyFrame* p
         // Spanning tree edge
         // Step 4.1：添加第2种边：生成树的边（有父关键帧）
         // 父关键帧就是和当前帧共视程度最高的关键帧
+        // 如果当前帧有父关键帧的话，就把父关键帧和当前关键帧加一条边
         if(pParentKF)
         {
             // 父关键帧id
@@ -1223,7 +1224,7 @@ void Optimizer::OptimizeEssentialGraph(Map* pMap, KeyFrame* pLoopKF, KeyFrame* p
             optimizer.addEdge(e);
         }
 
-        // Loop edges
+        // Loop edges 闭环边
         // Step 4.2：添加第3种边：当前帧与闭环匹配帧之间的连接关系(这里面也包括了当前遍历到的这个关键帧之前曾经存在过的回环边)
         // 获取和当前关键帧形成闭环关系的关键帧
         const set<KeyFrame*> sLoopEdges = pKF->GetLoopEdges();
@@ -1252,10 +1253,10 @@ void Optimizer::OptimizeEssentialGraph(Map* pMap, KeyFrame* pLoopKF, KeyFrame* p
             }
         }
 
-        // Covisibility graph edges
+        // Covisibility graph edges 有很高共视关系的关键帧也作为边进行优化
         // Step 4.3：添加第4种边：共视程度超过100的关键帧也作为边进行优化
         // 取出和当前关键帧共视程度超过100的关键帧
-        const vector<KeyFrame*> vpConnectedKFs = pKF->GetCovisiblesByWeight(minFeat);
+        const vector<KeyFrame*> vpConnectedKFs = pKF->GetCovisiblesByWeight(minFeat); // minFeat就是Theta_min=100
         for(vector<KeyFrame*>::const_iterator vit=vpConnectedKFs.begin(); vit!=vpConnectedKFs.end(); vit++)
         {
             KeyFrame* pKFn = *vit;

@@ -150,6 +150,7 @@ bool Initializer::Initialize(const Frame &CurrentFrame, const vector<int> &vMatc
     for(int it=0; it<mMaxIterations; it++)
     {
 		//迭代开始的时候，所有的点都是可用的
+        // 下次用八点法的时候，这次的八个点就不能用了
         vAvailableIndices = vAllIndices;
 
         // Select a minimum set
@@ -351,6 +352,12 @@ void Initializer::FindFundamental(vector<bool> &vbMatchesInliers, float &score, 
     const int N = mvMatches12.size();
     // Normalize coordinates
     // Step 1 将当前帧和参考帧中的特征点坐标进行归一化，主要是平移和尺度变换
+    // 为什么要归一化：
+    // 1. 能够提高运算结果的精度
+    // 2. 利用归一化处理的图像坐标，对任何尺度缩放和原点选择是不变的。归一化步骤预先为图像坐标选择了一个标准的坐标系，
+    //    消除了坐标变换对结果的影响。
+    // 如，得到的几组点，坐标差异比较大，或分布不是很均匀，直接用八点发求F矩阵，误差比较大，统一归一化为一个均值为0，
+    // 一阶矩为1的一个特征点。
     // 具体来说,就是将mvKeys1和mvKey2归一化到均值为0，一阶绝对矩为1，归一化矩阵分别为T1、T2
     // 这里所谓的一阶绝对矩其实就是随机变量到取值的中心的绝对值的平均值
     // 归一化矩阵就是把上述归一化的操作用矩阵来表示。这样特征点坐标乘归一化矩阵可以得到归一化后的坐标
@@ -381,6 +388,7 @@ void Initializer::FindFundamental(vector<bool> &vbMatchesInliers, float &score, 
 
     // Perform all RANSAC iterations and save the solution with highest score
     // 下面进行每次的RANSAC迭代
+    // mMaxIterations是算Fundamental和Homography矩阵时RANSAC迭代次数
     for(int it=0; it<mMaxIterations; it++)
     {
         // Select a minimum set
@@ -392,7 +400,7 @@ void Initializer::FindFundamental(vector<bool> &vbMatchesInliers, float &score, 
             // vPn1i和vPn2i为匹配的特征点对的归一化后的坐标
 			// 首先根据这个特征点对的索引信息分别找到两个特征点在各自图像特征点向量中的索引，然后读取其归一化之后的特征点坐标
             vPn1i[j] = vPn1[mvMatches12[idx].first];        //first存储在参考帧1中的特征点索引
-            vPn2i[j] = vPn2[mvMatches12[idx].second];       //second存储在参考帧1中的特征点索引
+            vPn2i[j] = vPn2[mvMatches12[idx].second];       //second存储在参考帧1中的特征点索引 当前帧？
         }
 
         // Step 3 八点法计算基础矩阵
@@ -400,7 +408,7 @@ void Initializer::FindFundamental(vector<bool> &vbMatchesInliers, float &score, 
 
         // 基础矩阵约束：p2^t*F21*p1 = 0，其中p1,p2 为齐次化特征点坐标    
         // 特征点归一化：vPn1 = T1 * mvKeys1, vPn2 = T2 * mvKeys2  
-        // 根据基础矩阵约束得到:(T2 * mvKeys2)^t* Hn * T1 * mvKeys1 = 0   
+        // 根据基础矩阵约束得到:(T2 * mvKeys2)^t* Hn * T1 * mvKeys1 = 0   // 注：此处Hn就是F21
         // 进一步得到:mvKeys2^t * T2^t * Hn * T1 * mvKeys1 = 0
         F21i = T2t*Fn*T1;
 
@@ -411,8 +419,8 @@ void Initializer::FindFundamental(vector<bool> &vbMatchesInliers, float &score, 
         if(currentScore>score)
         {
             //如果当前的结果得分更高，那么就更新最优计算结果
-            F21 = F21i.clone();
-            vbMatchesInliers = vbCurrentInliers;
+            F21 = F21i.clone(); // 记录当前帧和参考帧之间的基础矩阵
+            vbMatchesInliers = vbCurrentInliers; // 记录匹配的特征点对属于inliers的标记
             score = currentScore;
         }
     }
@@ -752,7 +760,7 @@ float Initializer::CheckFundamental(
     // input: 基础矩阵 F 左右视图匹配点集 mvKeys1
     //    do:
     //        for p1(i), p2(i) in mvKeys:
-    //           l2 = F * p1(i)
+    //           l2 = F * p1(i)     // 右边特征点乘以基础矩阵应该在右边极线上，然后算点到直线距离
     //           l1 = p2(i) * F
     //           error_i1 = dist_point_to_line(x2,l2)
     //           error_i2 = dist_point_to_line(x1,l1)
@@ -825,13 +833,14 @@ float Initializer::CheckFundamental(
 
         // Reprojection error in second image
         // Step 2.2 计算 img1 上的点在 img2 上投影得到的极线 l2 = F21 * p1 = (a2,b2,c2)
+        // 极线方程：ax + by + c = 0
 		const float a2 = f11*u1+f12*v1+f13;
         const float b2 = f21*u1+f22*v1+f23;
         const float c2 = f31*u1+f32*v1+f33;
     
         // Step 2.3 计算误差 e = (a * p2.x + b * p2.y + c) /  sqrt(a * a + b * b)
         const float num2 = a2*u2+b2*v2+c2;
-        const float squareDist1 = num2*num2/(a2*a2+b2*b2);
+        const float squareDist1 = num2*num2/(a2*a2+b2*b2); // e^2
         // 带权重误差
         const float chiSquare1 = squareDist1*invSigmaSquare;
 		
@@ -1679,7 +1688,7 @@ int Initializer::CheckRT(const cv::Mat &R, const cv::Mat &t, const vector<cv::Ke
             vbGood[vMatches12[i].first]=true;
     }
 
-    // Step 7 得到3D点中较小的视差角，并且转换成为角度制表示
+    // Step 7 得到3D点中较大的视差角，并且转换成为角度制表示
     if(nGood>0)
     {
         // 从小到大排序，注意vCosParallax值越大，视差越小

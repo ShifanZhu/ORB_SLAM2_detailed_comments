@@ -172,6 +172,8 @@ cv::Mat System::TrackStereo(const cv::Mat &imLeft, 		//左侧图像
     //检查是否有运行模式的改变
     // Check mode change
     {
+        //在每一个线程运行过程中，首先会创建一个unique_lock类，并且自动加锁，这个类的生存周期是整个括号空间，
+        //因此当出括号时会释放、销毁该unique_lock类，可见输出结果与正常使用mutex互斥锁是一样的。
     	// TODO 锁住这个变量？防止其他的线程对它的更改？
         unique_lock<mutex> lock(mMutexMode);
         //如果激活定位模式
@@ -297,6 +299,8 @@ cv::Mat System::TrackMonocular(const cv::Mat &im, const double &timestamp)
         exit(-1);
     }
 
+    //在每一个线程运行过程中，首先会创建一个unique_lock类，并且自动加锁，这个类的生存周期是整个括号空间，
+    //因此当出括号时会释放、销毁该unique_lock类，可见输出结果与正常使用mutex互斥锁是一样的。
     // Check mode change
     {
         // 独占锁，主要是为了mbActivateLocalizationMode和mbDeactivateLocalizationMode不会发生混乱
@@ -379,6 +383,8 @@ bool System::MapChanged()
         return false;
 }
 
+//这个函数是供其它线程调用的，lock生存空间是整个Reset函数，当其它线程调用时，
+//自动抢占mMutexReset互斥锁，别的线程就无法再次调用了。当执行该函数完毕时，会自动解锁。
 //准备执行复位
 void System::Reset()
 {

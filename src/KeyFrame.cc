@@ -376,7 +376,7 @@ int KeyFrame::TrackedMapPoints(const int &minObs)
                         nPoints++;
                 }
                 else
-                    nPoints++; //!bug
+                    nPoints++;
             }
         }
     }
@@ -434,6 +434,7 @@ void KeyFrame::UpdateConnections()
             continue;
 
         // 对于每一个地图点，observations记录了可以观测到该地图点的所有关键帧
+        // 观测到该MapPoint的KF和该MapPoint在KF中的索引 (size_t)
         map<KeyFrame*,size_t> observations = pMP->GetObservations();
 
         for(map<KeyFrame*,size_t>::iterator mit=observations.begin(), mend=observations.end(); mit!=mend; mit++)
@@ -445,6 +446,7 @@ void KeyFrame::UpdateConnections()
             // map[key] = value，当要插入的键存在时，会覆盖键对应的原来的值。如果键不存在，则添加一组键值对
             // mit->first 是地图点看到的关键帧，同一个关键帧看到的地图点会累加到该关键帧计数
             // 所以最后KFcounter 第一个参数表示某个关键帧，第2个参数表示该关键帧看到了多少当前帧的地图点，也就是共视程度
+            // 每进来一个地图点，它是在哪一个关键帧里边，就把对应关键帧做一个自增
             KFcounter[mit->first]++;
         }
     }
@@ -470,7 +472,7 @@ void KeyFrame::UpdateConnections()
     {
         if(mit->second>nmax)
         {
-            nmax=mit->second;
+            nmax=mit->second; // 其实就是共视点的数目
             pKFmax=mit->first;
         }
 
@@ -478,15 +480,16 @@ void KeyFrame::UpdateConnections()
         if(mit->second>=th)
         {
             // 对应权重需要大于阈值，对这些关键帧建立连接
+            // 转换first和second，为了排序
             vPairs.push_back(make_pair(mit->second,mit->first));
             // 对方关键帧也要添加这个信息
             // 更新KFcounter中该关键帧的mConnectedKeyFrameWeights
-            // 更新其它KeyFrame的mConnectedKeyFrameWeights，更新其它关键帧与当前帧的连接权重
+            // 更新其它KeyFrame的mConnectedKeyFrameWeights，更新其它关键帧(this)与当前帧(mit-first)的连接权重
             (mit->first)->AddConnection(this,mit->second);
         }
     }
 
-    //  Step 3 如果没有超过阈值的权重，则对权重最大的关键帧建立连接
+    //  Step 3 如果没有超过阈值的权重，则对权重最大的关键帧建立连接，瘸子里边挑将军
     if(vPairs.empty())
     {
 	    // 如果每个关键帧与它共视的关键帧的个数都少于th，
@@ -514,16 +517,16 @@ void KeyFrame::UpdateConnections()
 
         // mspConnectedKeyFrames = spConnectedKeyFrames;
         // 更新当前帧与其它关键帧的连接权重
-        // ?bug 这里直接赋值，会把小于阈值的共视关系也放入mConnectedKeyFrameWeights，会增加计算量
-        // ?但后续主要用mvpOrderedConnectedKeyFrames来取共视帧，对结果没影响
         mConnectedKeyFrameWeights = KFcounter;
+        // mvpOrderedConnectedKeyFrames存储共视关键帧中权重从大到小排序后的关键帧 
         mvpOrderedConnectedKeyFrames = vector<KeyFrame*>(lKFs.begin(),lKFs.end());
         mvOrderedWeights = vector<int>(lWs.begin(), lWs.end());
 
-        // Step 5 更新生成树的连接
-        if(mbFirstConnection && mnId!=0)
+        // Step 5 更新生成树的连接关系
+        if(mbFirstConnection && mnId!=0) // 首次生成树 && 不是第零帧
         {
             // 初始化该关键帧的父关键帧为共视程度最高的那个关键帧
+            // mpParent是当前关键帧的父关键帧 （共视程度最高的）
             mpParent = mvpOrderedConnectedKeyFrames.front();
             // 建立双向连接关系，将当前关键帧作为其子关键帧
             mpParent->AddChild(this);

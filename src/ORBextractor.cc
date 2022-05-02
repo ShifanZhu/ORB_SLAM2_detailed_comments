@@ -104,6 +104,7 @@ static float IC_Angle(const Mat& image, Point2f pt,  const vector<int> & u_max)
     //后面是以中心行为对称轴，成对遍历行数，所以PATCH_SIZE必须是奇数
     for (int u = -HALF_PATCH_SIZE; u <= HALF_PATCH_SIZE; ++u)
 		//注意这里的center下标u可以是负的！中心水平线上的像素按x坐标（也就是u坐标）加权
+        //对于边界处的特征点，由于扩充了EDGE_THRESHOLD，所以此处u为负不会出错
         m_10 += u * center[u];
 
     // Go line by line in the circular patch  
@@ -206,7 +207,7 @@ static void computeOrbDescriptor(const KeyPoint& kpt, const Mat& img, const Poin
 //下面就是预先定义好的随机点集，256是指可以提取出256bit的描述子信息，每个bit由一对点比较得来；4=2*2，前面的2是需要两个点（一对点）进行比较，后面的2是一个点有两个坐标
 static int bit_pattern_31_[256*4] =
 {
-    8,-3, 9,5/*mean (0), correlation (0)*/,				
+    8,-3, 9,5/*mean (0), correlation (0)*/,				//后面的均值和相关性没有看懂是什么意思
     4,2, 7,-12/*mean (1.12461e-05), correlation (0.0437584)*/,
     -11,9, -8,2/*mean (3.37382e-05), correlation (0.0617409)*/,
     7,-12, 12,-13/*mean (5.62303e-05), correlation (0.0636977)*/,
@@ -508,6 +509,8 @@ ORBextractor::ORBextractor(int _nfeatures,		//指定要提取的特征点数目
 	//图片降采样缩放系数的倒数
     float factor = 1.0f / scaleFactor;
 	//第0层图像应该分配的特征点数量
+    // TODO 参考 https://blog.csdn.net/luoshixian099/article/details/48523267 似乎从opencv借鉴过来的
+    // 此处少乘了个factor，也就是按照边长来算的，不是面积，视频15分左右有讲
     float nDesiredFeaturesPerScale = nfeatures*(1 - factor)/(1 - (float)pow((double)factor, (double)nlevels));
 
 	//用于在特征点个数分配的，特征点的累计计数清空
@@ -539,6 +542,7 @@ ORBextractor::ORBextractor(int _nfeatures,		//指定要提取的特征点数目
     // pre-compute the end of a row in a circular patch
 	//预先计算圆形patch中行的结束位置
 	//+1中的1表示那个圆的中间行
+    // 半径+1
     umax.resize(HALF_PATCH_SIZE + 1);
 	
 	//cvFloor返回不大于参数的最大整数值，cvCeil返回不小于参数的最小整数值，cvRound则是四舍五入
@@ -549,14 +553,15 @@ ORBextractor::ORBextractor(int _nfeatures,		//指定要提取的特征点数目
 				//是因为圆周上的对称特性
 				
 	//这里的二分之根2就是对应那个45°圆心角
-    
+    // 半径乘二分之根号二，只比vmax小1
     int vmin = cvCeil(HALF_PATCH_SIZE * sqrt(2.f) / 2);
 	//半径的平方
     const double hp2 = HALF_PATCH_SIZE*HALF_PATCH_SIZE;
 
+    // umax用来限制，只在圆内进行操作
 	//利用圆的方程计算每行像素的u坐标边界（max）
     for (v = 0; v <= vmax; ++v)
-        umax[v] = cvRound(sqrt(hp2 - v * v));		//结果都是大于0的结果，表示x坐标在这一行的边界
+        umax[v] = cvRound(sqrt(hp2 - v * v));		//结果都是大于0的结果，表示x坐标在这一行的边界。勾股定理
 
     // Make sure we are symmetric
 	//这里其实是使用了对称的方式计算上四分之一的圆周上的umax，目的也是为了保持严格的对称（如果按照常规的想法做，由于cvRound就会很容易出现不对称的情况，
@@ -692,9 +697,11 @@ vector<cv::KeyPoint> ORBextractor::DistributeOctTree(const vector<cv::KeyPoint>&
     // Step 1 根据宽高比确定初始节点数目
 	//计算应该生成的初始节点个数，根节点的数量nIni是根据边界的宽高比值确定的，一般是1或者2
     // ! bug: 如果宽高比小于0.5，nIni=0, 后面hx会报错
+    // 对于640*480，此值为1
     const int nIni = round(static_cast<float>(maxX-minX)/(maxY-minY));
 
 	//一个初始的节点的x方向有多少个像素
+    // 对于640*480，此值为图像宽
     const float hX = static_cast<float>(maxX-minX)/nIni;
 
 	//存储有提取器节点的链表
@@ -737,15 +744,17 @@ vector<cv::KeyPoint> ORBextractor::DistributeOctTree(const vector<cv::KeyPoint>&
 		//获取这个特征点对象
         const cv::KeyPoint &kp = vToDistributeKeys[i];
 		//按特征点的横轴位置，分配给属于那个图像区域的提取器节点（最初的提取器节点）
+        // 对于640*480，kp.pt.x/hx是特征点的x轴占宽的比例0~1，
         vpIniNodes[kp.pt.x/hX]->vKeys.push_back(kp);
     }
     
 	// Step 4 遍历此提取器节点列表，标记那些不可再分裂的节点，删除那些没有分配到特征点的节点
     // ? 这个步骤是必要的吗？感觉可以省略，通过判断nIni个数和vKeys.size() 就可以吧
+    // 这个步骤是最开始的一个大节点，不太可能整张图都没有特征点
     list<ExtractorNode>::iterator lit = lNodes.begin();
     while(lit!=lNodes.end())
     {
-		//如果初始的提取器节点所分配到的特征点个数为1
+		//如果初始的提取器节点所分配到的特征点个数为1。一般不太可能只提到1个特征点。
         if(lit->vKeys.size()==1)
         {
 			//那么就标志位置位，表示此节点不可再分
@@ -832,6 +841,7 @@ vector<cv::KeyPoint> ORBextractor::DistributeOctTree(const vector<cv::KeyPoint>&
                         nToExpand++;
 
 						//保存这个特征点数目和节点指针的信息
+                        // 存储可以再分的节点
                         vSizeAndPointerToNode.push_back(make_pair(n1.vKeys.size(),&lNodes.front()));
 
 						//?这个访问用的句柄貌似并没有用到？
@@ -917,10 +927,12 @@ vector<cv::KeyPoint> ORBextractor::DistributeOctTree(const vector<cv::KeyPoint>&
                 prevSize = lNodes.size();
 
 				//保留那些还可以分裂的节点的信息, 这里是深拷贝
+                // 要去分裂的节点个数，保存到之前的
                 vector<pair<int,ExtractorNode*> > vPrevSizeAndPointerToNode = vSizeAndPointerToNode;
 				//清空
                 vSizeAndPointerToNode.clear();
 
+                // vPrevSizeAndPointerToNode是马上要分的节点的总个数
                 // 对需要划分的节点进行排序，对pair对的第一个元素进行排序，默认是从小到大排序
 				// 优先分裂特征点多的节点，使得特征点密集的区域保留更少的特征点
                 //! 注意这里的排序规则非常重要！会导致每次最后产生的特征点都不一样。建议使用 stable_sort
@@ -1109,7 +1121,7 @@ void ORBextractor::ComputeKeyPointsOctTree(
                 // FAST提取兴趣点, 自适应阈值
 				//这个向量存储这个cell中的特征点
                 vector<cv::KeyPoint> vKeysCell;
-				//调用opencv的库函数来检测FAST角点
+				//调用opencv的库函数来检测FAST角点，寻找红框的四个点
                 FAST(mvImagePyramid[level].rowRange(iniY,maxY).colRange(iniX,maxX),	//待检测的图像，这里就是当前遍历到的图像块
                      vKeysCell,			//存储角点位置的容器
 					 iniThFAST,			//检测阈值
@@ -1143,7 +1155,7 @@ void ORBextractor::ComputeKeyPointsOctTree(
             }//开始遍历图像cell的列
         }//开始遍历图像cell的行
 
-        //声明一个对当前图层的特征点的容器的引用
+        //声明一个对当前图层的特征点的容器的引用，注意此处是引用
         vector<KeyPoint> & keypoints = allKeypoints[level];
 		//并且调整其大小为欲提取出来的特征点个数（当然这里也是扩大了的，因为不可能所有的特征点都是在这一个图层中提取出来的）
         keypoints.reserve(nfeatures);

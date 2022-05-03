@@ -184,7 +184,7 @@ Tracking::Tracking(
         mpORBextractorRight = new ORBextractor(nFeatures,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
 
     // 在单目初始化的时候，会用mpIniORBextractor来作为特征点提取器
-    if(sensor==System::MONOCULAR)
+    if(sensor==System::MONOCULAR)       // 单目初始化提取两倍的特征点
         mpIniORBextractor = new ORBextractor(2*nFeatures,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
 
     cout << endl  << "ORB Extractor Parameters: " << endl;

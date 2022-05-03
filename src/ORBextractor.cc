@@ -510,6 +510,7 @@ ORBextractor::ORBextractor(int _nfeatures,		//指定要提取的特征点数目
     float factor = 1.0f / scaleFactor;
 	//第0层图像应该分配的特征点数量
     // TODO 参考 https://blog.csdn.net/luoshixian099/article/details/48523267 似乎从opencv借鉴过来的
+    // 其实这里很多函数，本身就是opencv的源码
     // 此处少乘了个factor，也就是按照边长来算的，不是面积，视频15分左右有讲
     float nDesiredFeaturesPerScale = nfeatures*(1 - factor)/(1 - (float)pow((double)factor, (double)nlevels));
 

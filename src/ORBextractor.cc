@@ -886,7 +886,7 @@ vector<cv::KeyPoint> ORBextractor::DistributeOctTree(const vector<cv::KeyPoint>&
 
                 //当这个母节点expand之后就从列表中删除它了，能够进行分裂操作说明至少有一个子节点的区域中特征点的数量是>1的
                 // 分裂方式是后加的节点先分裂，先加的后分裂
-                lit=lNodes.erase(lit);
+                lit=lNodes.erase(lit); // 对应文档图中删除0节点，删除之后自动指向节点1，等等。全部分裂完下一次从19开始。
 
 				//继续下一次循环，其实这里加不加这句话的作用都是一样的
                 continue;
@@ -939,7 +939,7 @@ vector<cv::KeyPoint> ORBextractor::DistributeOctTree(const vector<cv::KeyPoint>&
                 //! 注意这里的排序规则非常重要！会导致每次最后产生的特征点都不一样。建议使用 stable_sort
                 sort(vPrevSizeAndPointerToNode.begin(),vPrevSizeAndPointerToNode.end());
 
-				//遍历这个存储了pair对的vector，注意是从后往前遍历
+				//遍历这个存储了pair对的vector，注意是从后往前遍历。保证优先分裂特征点多的节点，因为分裂特征点少的节点没太大意义。
                 for(int j=vPrevSizeAndPointerToNode.size()-1;j>=0;j--)
                 {
                     ExtractorNode n1,n2,n3,n4;

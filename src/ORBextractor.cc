@@ -1077,10 +1077,10 @@ void ORBextractor::ComputeKeyPointsOctTree(
         const float width = (maxBorderX-minBorderX);
         const float height = (maxBorderY-minBorderY);
 
-		//计算网格在当前层的图像有的行数和列数
+		//计算大网格在当前层的图像的行数和列数
         const int nCols = width/W;
         const int nRows = height/W;
-		//计算每个图像网格所占的像素行数和列数
+		//计算每个图像大网格所占的像素行数和列数
         const int wCell = ceil(width/nCols);
         const int hCell = ceil(height/nRows);
 
@@ -1144,7 +1144,7 @@ void ORBextractor::ComputeKeyPointsOctTree(
 					//遍历其中的所有FAST角点
                     for(vector<cv::KeyPoint>::iterator vit=vKeysCell.begin(); vit!=vKeysCell.end();vit++)
                     {
-						//NOTICE 到目前为止，这些角点的坐标都是基于图像cell的，现在我们要先将其恢复到当前的【坐标边界】下的坐标
+						//NOTICE 到目前为止，这些角点的坐标都是基于图像小cell的，现在我们要先将其恢复到当前的【坐标边界】下的坐标
 						//这样做是因为在下面使用八叉树法整理特征点的时候将会使用得到这个坐标
 						//在后面将会被继续转换成为在当前图层的扩充图像坐标系下的坐标
                         (*vit).pt.x+=j*wCell;

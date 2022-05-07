@@ -17,18 +17,21 @@
 	"icon": "question",
 	"iconColour": "green",
 	"type": "text-and-comment",
+	"rulerColour": "#202020",
 	"hideFromTree": true
 	},
 	"?": {
 	"foreground": "yellow",
 	"icon": "question",
 	"iconColour": "yellow",
+	"rulerColour": "#202020",
 	"type": "text-and-comment"
 	},
 	"!": {
 	"foreground": "red",
 	"icon": "issue-opened",
 	"iconColour": "red",
+	"rulerColour": "#202020",
 	"type": "text-and-comment"
 	}
 	},

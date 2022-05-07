@@ -168,7 +168,9 @@ static void computeOrbDescriptor(const KeyPoint& kpt, const Mat& img, const Poin
 	//获得采样点中某个idx所对应的点的灰度值,这里旋转前坐标为(x,y), 旋转后坐标(x',y')，他们的变换关系:
     // x'= xcos(θ) - ysin(θ),  y'= xsin(θ) + ycos(θ)
     // 下面表示 y'* step + x'
-    #define GET_VALUE(idx) center[cvRound(pattern[idx].x*b + pattern[idx].y*a)*step + cvRound(pattern[idx].x*a - pattern[idx].y*b)]        
+    #define GET_VALUE(idx) \
+        center[cvRound(pattern[idx].x*b + pattern[idx].y*a)*step + \   // y' * step
+               cvRound(pattern[idx].x*a - pattern[idx].y*b)]           // x'
     
 	//brief描述子由32*8位组成
 	//其中每一位是来自于两个像素点灰度的直接比较，所以每比较出8bit结果，需要16个随机点，这也就是为什么pattern需要+=16的原因
@@ -1638,7 +1640,7 @@ void ORBextractor::operator()( InputArray _image, InputArray _mask, vector<KeyPo
 						   desc, 		//存储计算之后的描述子
 						   pattern);	//随机采样模板
 
-		// 更新偏移量的值 
+		// 更新偏移量的值 (偏移量的大小为当前图层的特征点的数目)
         offset += nkeypointsLevel;
 
         // Scale keypoint coordinates
@@ -1657,7 +1659,7 @@ void ORBextractor::operator()( InputArray _image, InputArray _mask, vector<KeyPo
         }
         
         // And add the keypoints to the output
-        // 将keypoints中内容插入到_keypoints 的末尾
+        // 将keypoints中内容插入到_keypoints 的末尾（此处的keypoints的坐标是缩放之后的，也就是在第0层的坐标）
         // keypoint其实是对allkeypoints中每层图像中特征点的引用，这样allkeypoints中的所有特征点在这里被转存到输出的_keypoints
         _keypoints.insert(_keypoints.end(), keypoints.begin(), keypoints.end());
     }

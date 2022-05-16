@@ -356,7 +356,7 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
     mvDepth = vector<float>(N,-1);
 
 
-    // 初始化本帧的地图点
+    // 初始化本帧的地图点（与特征点大小一致）
     mvpMapPoints = vector<MapPoint*>(N,static_cast<MapPoint*>(NULL));
 	// 记录地图点是否为外点，初始化均为外点false
     mvbOutlier = vector<bool>(N,false);
@@ -389,7 +389,7 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
     //计算 basline
     mb = mbf/fx;
 
-	// 将特征点分配到图像网格中 
+	// 将特征点分配到图像网格中 （默认64*48，如果是640*480的分辨率就是10*10的网格）
     AssignFeaturesToGrid();
 }
 
@@ -406,7 +406,7 @@ void Frame::AssignFeaturesToGrid()
 	//开始对mGrid这个二维数组中的每一个vector元素遍历并预分配空间
     for(unsigned int i=0; i<FRAME_GRID_COLS;i++)
         for (unsigned int j=0; j<FRAME_GRID_ROWS;j++)
-            mGrid[i][j].reserve(nReserve);
+            mGrid[i][j].reserve(nReserve); // ? 此处的Grid是什么
 
     // Step 2 遍历每个特征点，将每个特征点在mvKeysUn中的索引值放到对应的网格mGrid中
     for(int i=0;i<N;i++)
@@ -768,7 +768,7 @@ void Frame::UndistortKeyPoints()
     for(int i=0; i<N; i++)
     {
 		//根据索引获取这个特征点
-		//注意之所以这样做而不是直接重新声明一个特征点对象的目的是，能够得到源特征点对象的其他属性
+		//注意之所以这样做而不是直接重新声明一个特征点对象的目的是，能够得到源特征点对象的其他属性(特征点方向、响应值、描述子等)
         cv::KeyPoint kp = mvKeys[i];
 		//读取校正后的坐标并覆盖老坐标
         kp.pt.x=mat.at<float>(i,0);

@@ -948,7 +948,7 @@ void Tracking::MonocularInitialization()
         cv::Mat tcw; // Current Camera Translation
         vector<bool> vbTriangulated; // Triangulated Correspondences (mvIniMatches)
 
-        // Step 5 通过H模型或F模型进行单目初始化，得到两帧间相对运动、初始MapPoints
+        // Step 5 如果为true则是通过H模型或F模型进行了单目初始化，得到两帧间相对运动、初始MapPoints
         if(mpInitializer->Initialize(
             mCurrentFrame,      //当前帧
             mvIniMatches,       //当前帧和参考帧的特征点的匹配关系
@@ -959,7 +959,7 @@ void Tracking::MonocularInitialization()
             // Step 6 初始化成功后，删除那些无法进行三角化的匹配点
             for(size_t i=0, iend=mvIniMatches.size(); i<iend;i++)
             {
-                if(mvIniMatches[i]>=0 && !vbTriangulated[i])
+                if(mvIniMatches[i]>=0 && !vbTriangulated[i]) // 有匹配关系&&没有成功三角化
                 {
                     mvIniMatches[i]=-1;
                     nmatches--;
@@ -1037,6 +1037,7 @@ void Tracking::CreateInitialMapMonocular()
         pMP->AddObservation(pKFcur,mvIniMatches[i]);
 
         // b.从众多观测到该MapPoint的特征点中挑选最有代表性的描述子
+        // 一个地图点可以被多个帧同时观测到，所以3D点只有一个，2D点有很多个，从中挑出一个最有代表性的
         pMP->ComputeDistinctiveDescriptors();
         // c.更新该MapPoint平均观测方向以及观测距离的范围
         pMP->UpdateNormalAndDepth();
@@ -1048,7 +1049,7 @@ void Tracking::CreateInitialMapMonocular()
         mCurrentFrame.mvbOutlier[mvIniMatches[i]] = false;
 
         //Add to Map
-        mpMap->AddMapPoint(pMP);
+        mpMap->AddMapPoint(pMP); // 将地图点加入整个地图
     }
 
     // Update Connections
@@ -1068,6 +1069,7 @@ void Tracking::CreateInitialMapMonocular()
     // 为什么是 pKFini 而不是 pKCur ? 答：都可以的，内部做了位姿变换了
     float medianDepth = pKFini->ComputeSceneMedianDepth(2);
     float invMedianDepth = 1.0f/medianDepth;
+    std::cout << "medianDepth=" << medianDepth << "  invmedianDepth=" << invMedianDepth << std::endl;
     
     //两个条件,一个是平均深度要大于0,另外一个是在当前帧中被观测到的地图点的数目应该大于100
     if(medianDepth<0 || pKFcur->TrackedMapPoints(1)<100)
@@ -1080,8 +1082,9 @@ void Tracking::CreateInitialMapMonocular()
     // Step 6 将两帧之间的变换归一化到平均深度1的尺度下
     // Scale initial baseline
     cv::Mat Tc2w = pKFcur->GetPose();
-    // x/z y/z 将z归一化到1 
-    Tc2w.col(3).rowRange(0,3) = Tc2w.col(3).rowRange(0,3)*invMedianDepth;
+    // x/z y/z 将z归一化到1 注：其实不是将z归一化到1，只是乘以逆深度
+    Tc2w.col(3).rowRange(0,3) = Tc2w.col(3).rowRange(0,3)*invMedianDepth; // 将平移向量乘以逆深度
+    // std::cout << "Tc2w.col(3).rowRange(0,3) = " << Tc2w.col(3).rowRange(0,3).t() << std::endl;
     pKFcur->SetPose(Tc2w);
 
     // Scale points
@@ -1094,6 +1097,7 @@ void Tracking::CreateInitialMapMonocular()
         {
             MapPoint* pMP = vpAllMapPoints[iMP];
             pMP->SetWorldPos(pMP->GetWorldPos()*invMedianDepth);
+            // std::cout << "ori= " << pMP->GetWorldPos().t() << "  curr= " << pMP->GetWorldPos().t()*invMedianDepth << std::endl;
         }
     }
 
@@ -1105,6 +1109,7 @@ void Tracking::CreateInitialMapMonocular()
     mnLastKeyFrameId=mCurrentFrame.mnId;
     mpLastKeyFrame = pKFcur;
 
+    // mvpLocalKeyFrames 是局部关键帧集合
     mvpLocalKeyFrames.push_back(pKFcur);
     mvpLocalKeyFrames.push_back(pKFini);
     // 单目初始化之后，得到的初始地图中的所有点都是局部地图点

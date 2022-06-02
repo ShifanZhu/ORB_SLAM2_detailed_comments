@@ -169,8 +169,7 @@ static void computeOrbDescriptor(const KeyPoint& kpt, const Mat& img, const Poin
     // x'= xcos(θ) - ysin(θ),  y'= xsin(θ) + ycos(θ)
     // 下面表示 y'* step + x'
     #define GET_VALUE(idx) \
-        center[cvRound(pattern[idx].x*b + pattern[idx].y*a)*step + \   // y' * step
-               cvRound(pattern[idx].x*a - pattern[idx].y*b)]           // x'
+        center[cvRound(pattern[idx].x*b + pattern[idx].y*a)*step + cvRound(pattern[idx].x*a - pattern[idx].y*b)]
     
 	//brief描述子由32*8位组成
 	//其中每一位是来自于两个像素点灰度的直接比较，所以每比较出8bit结果，需要16个随机点，这也就是为什么pattern需要+=16的原因

@@ -293,19 +293,19 @@ void Initializer::FindHomography(vector<bool> &vbMatchesInliers, float &score, c
             // vPn1i和vPn2i为匹配的特征点对的归一化后的坐标
 			// 首先根据这个特征点对的索引信息分别找到两个特征点在各自图像特征点向量中的索引，然后读取其归一化之后的特征点坐标
             vPn1i[j] = vPn1[mvMatches12[idx].first];    //first存储在参考帧1中的特征点索引
-            vPn2i[j] = vPn2[mvMatches12[idx].second];   //second存储在参考帧1中的特征点索引
+            vPn2i[j] = vPn2[mvMatches12[idx].second];   //second存储在参考帧2中的特征点索引
         }//读取8对特征点的归一化之后的坐标
 
 		// Step 3 八点法计算单应矩阵
         // 利用生成的8个归一化特征点对, 调用函数 Initializer::ComputeH21() 使用八点法计算单应矩阵  
         // 关于为什么计算之前要对特征点进行归一化，后面又恢复这个矩阵的尺度？
         // 可以在《计算机视觉中的多视图几何》这本书中P193页中找到答案
-        // 书中这里说,8点算法成功的关键是在构造解的方称之前应对输入的数据认真进行适当的归一化
+        // 书中这里说,8点算法成功的关键是在构造解的方程之前应对输入的数据认真进行适当的归一化
    
         cv::Mat Hn = ComputeH21(vPn1i,vPn2i);
         
         // 单应矩阵原理：X2=H21*X1，其中X1,X2 为归一化后的特征点    
-        // 特征点归一化：vPn1 = T1 * mvKeys1, vPn2 = T2 * mvKeys2  得到:T2 * mvKeys2 =  Hn * T1 * mvKeys1   
+        // 特征点归一化：vPn1 = T1 * mvKeys1, vPn2 = T2 * mvKeys2  得到:T2 * mvKeys2 =  Hn * T1 * mvKeys1, T1 T2为归一化矩阵
         // 进一步得到:mvKeys2  = T2.inv * Hn * T1 * mvKeys1
         H21i = T2inv*Hn*T1;
 		//然后计算逆
@@ -408,8 +408,8 @@ void Initializer::FindFundamental(vector<bool> &vbMatchesInliers, float &score, 
 
         // 基础矩阵约束：p2^t*F21*p1 = 0，其中p1,p2 为齐次化特征点坐标    
         // 特征点归一化：vPn1 = T1 * mvKeys1, vPn2 = T2 * mvKeys2  
-        // 根据基础矩阵约束得到:(T2 * mvKeys2)^t* Hn * T1 * mvKeys1 = 0   // 注：此处Hn就是F21
-        // 进一步得到:mvKeys2^t * T2^t * Hn * T1 * mvKeys1 = 0
+        // 根据基础矩阵约束得到:(T2 * mvKeys2)^t* Fn * T1 * mvKeys1 = 0   // 注：此处Fn就是F21
+        // 进一步得到:mvKeys2^t * T2^t * Fn * T1 * mvKeys1 = 0
         F21i = T2t*Fn*T1;
 
         // Step 4 利用重投影误差为当次RANSAC的结果评分
@@ -456,7 +456,7 @@ cv::Mat Initializer::ComputeH21(
     const int N = vP1.size();
 
     // 构造用于计算的矩阵 A 
-    cv::Mat A(2*N,				//行，注意每一个点的数据对应两行
+    cv::Mat A(2*N,				//行，注意每一个点对的数据对应两行
 			  9,				//列
 			  CV_32F);      	//float数据类型
 
@@ -531,10 +531,10 @@ cv::Mat Initializer::ComputeF21(
     // 通过SVD求解Af = 0，A'A最小特征值对应的特征向量即为解
 
 	//获取参与计算的特征点对数
-    const int N = vP1.size();
+    const int N = vP1.size(); // 此处的N等于8
 
 	//初始化A矩阵
-    cv::Mat A(N,9,CV_32F); // N*9维
+    cv::Mat A(N,9,CV_32F); // N*9维 此处的N等于8
 
     // 构造矩阵A，将每个特征点添加到矩阵A中的元素
     for(int i=0; i<N; i++)
@@ -590,20 +590,20 @@ float Initializer::CheckHomography(
     vector<bool> &vbMatchesInliers,     //匹配好的特征点对的Inliers标记
     float sigma)                        //估计误差
 {
-    // 说明：在已值n维观测数据误差服从N(0，sigma）的高斯分布时
+    // 说明：在已知n维观测数据误差服从N(0，sigma）的高斯分布时
     // 其误差加权最小二乘结果为  sum_error = SUM(e(i)^T * Q^(-1) * e(i))
-    // 其中：e(i) = [e_x,e_y,...]^T, Q维观测数据协方差矩阵，即sigma * sigma组成的协方差矩阵
-    // 误差加权最小二次结果越小，说明观测数据精度越高
+    // 其中：e(i) = [e_x,e_y,...]^T, Q为观测数据协方差矩阵，即sigma * sigma组成的协方差矩阵
+    // 误差加权最小二乘结果越小，说明观测数据精度越高
     // 那么，score = SUM((th - e(i)^T * Q^(-1) * e(i)))的分数就越高
     // 算法目标： 检查单应变换矩阵
-    // 检查方式：通过H矩阵，进行参考帧和当前帧之间的双向投影，并计算起加权最小二乘投影误差
+    // 检查方式：通过H矩阵，进行参考帧和当前帧之间的双向投影，并计算加权最小二乘投影误差
 
     // 算法流程
     // input: 单应性矩阵 H21, H12, 匹配点集 mvKeys1
     //    do:
     //        for p1(i), p2(i) in mvKeys:
-    //           error_i1 = ||p2(i) - H21 * p1(i)||2
-    //           error_i2 = ||p1(i) - H12 * p2(i)||2
+    //           error_i1 = ||p2(i) - H21 * p1(i)||2 // 正向重投影
+    //           error_i2 = ||p1(i) - H12 * p2(i)||2 // 逆向重投影
     //           
     //           w1 = 1 / sigma / sigma
     //           w2 = 1 / sigma / sigma
@@ -685,7 +685,7 @@ float Initializer::CheckHomography(
         // |1 |   |h31inv h32inv h33inv||1 |   |  1  |
 		// 计算投影归一化坐标
         const float w2in1inv = 1.0/(h31inv * u2 + h32inv * v2 + h33inv);
-        const float u2in1 = (h11inv * u2 + h12inv * v2 + h13inv) * w2in1inv;
+        const float u2in1 = (h11inv * u2 + h12inv * v2 + h13inv) * w2in1inv; // u2in1表示帧2的特征点投影到帧1
         const float v2in1 = (h21inv * u2 + h22inv * v2 + h23inv) * w2in1inv;
    
         // 计算重投影误差 = ||p1(i) - H12 * p2(i)||2
@@ -743,10 +743,10 @@ float Initializer::CheckFundamental(
     float sigma)                    //方差
 {
 
-    // 说明：在已值n维观测数据误差服从N(0，sigma）的高斯分布时
+    // 说明：在已知n维观测数据误差服从N(0，sigma）的高斯分布时
     // 其误差加权最小二乘结果为  sum_error = SUM(e(i)^T * Q^(-1) * e(i))
-    // 其中：e(i) = [e_x,e_y,...]^T, Q维观测数据协方差矩阵，即sigma * sigma组成的协方差矩阵
-    // 误差加权最小二次结果越小，说明观测数据精度越高
+    // 其中：e(i) = [e_x,e_y,...]^T, Q为观测数据协方差矩阵，即sigma * sigma组成的协方差矩阵
+    // 误差加权最小二乘结果越小，说明观测数据精度越高
     // 那么，score = SUM((th - e(i)^T * Q^(-1) * e(i)))的分数就越高
     // 算法目标：检查基础矩阵
     // 检查方式：利用对极几何原理 p2^T * F * p1 = 0
@@ -847,11 +847,11 @@ float Initializer::CheckFundamental(
         // Step 2.4 误差大于阈值就说明这个点是Outlier 
         // ? 为什么判断阈值用的 th（1自由度），计算得分用的thScore（2自由度）
         // ? 可能是为了和CheckHomography 得分统一？
-        if(chiSquare1>th)
+        if(chiSquare1>th) // 此处的阈值和单应矩阵不一样
             bIn = false;
         else
             // 误差越大，得分越低
-            score += thScore - chiSquare1;
+            score += thScore - chiSquare1; // 此处得分和单应矩阵一样，因为需要统一
 
         // 计算img2上的点在 img1 上投影得到的极线 l1= p2 * F21 = (a1,b1,c1)
         const float a1 = f11*u2+f21*v2+f31;
@@ -1130,7 +1130,7 @@ bool Initializer::ReconstructH(vector<bool> &vbMatchesInliers, cv::Mat &H21, cv:
 
 
     // 在ORBSLAM中没有对奇异值 d1 d2 d3按照论文中描述的关系进行分类讨论, 而是直接进行了计算
-    // 定义8中情况下的旋转矩阵、平移向量和空间向量
+    // 定义8种情况下的旋转矩阵、平移向量和空间向量
     vector<cv::Mat> vR, vt, vn;
     vR.reserve(8);
     vt.reserve(8);
@@ -1297,7 +1297,7 @@ bool Initializer::ReconstructH(vector<bool> &vbMatchesInliers, cv::Mat &H21, cv:
     // Instead of applying the visibility constraints proposed in the WFaugeras' paper (which could fail for points seen with low parallax)
     // We reconstruct all hypotheses and check in terms of triangulated points and parallax
     
-    // Step 2. 对 8 组解进行验证，并选择产生相机前方最多3D点的解为最优解
+    // Step 2. 对 8 组解进行验证。 准则为选择产生相机前方最多3D点的解为最优解
     for(size_t i=0; i<8; i++)
     {
         // 第i组解对应的比较大的视差角
@@ -1321,6 +1321,7 @@ bool Initializer::ReconstructH(vector<bool> &vbMatchesInliers, cv::Mat &H21, cv:
         // 保留最优的和次优的解.保存次优解的目的是看看最优解是否突出
         if(nGood>bestGood)
         {
+            std::cout << "nGood = " << nGood << std::endl;
             // 如果当前组解的good点数是历史最优，那么之前的历史最优就变成了历史次优
             secondBestGood = bestGood;
             // 更新历史最优点
@@ -1619,7 +1620,7 @@ int Initializer::CheckRT(const cv::Mat &R, const cv::Mat &t, const vector<cv::Ke
         float dist1 = cv::norm(normal1);
 
 		//同理构造向量PO2
-        cv::Mat normal2 = p3dC1 - O2;
+        cv::Mat normal2 = p3dC1 - O2; // 此处可以看出为什么要把O2定义在第一个坐标系下，也就是世界坐标系下，因为只有统一坐标系才能相减
 		//求模长
         float dist2 = cv::norm(normal2);
 
@@ -1631,15 +1632,18 @@ int Initializer::CheckRT(const cv::Mat &R, const cv::Mat &t, const vector<cv::Ke
         // ?视差比较小时，重投影误差比较大。这里0.99998 对应的角度为0.36°,这里不应该是 cosParallax>0.99998 吗？
         // ?因为后面判断vbGood 点时的条件也是 cosParallax<0.99998 
         // !可能导致初始化不稳定
-        if(p3dC1.at<float>(2)<=0 && cosParallax<0.99998)
+        // if(p3dC1.at<float>(2)<=0 && cosParallax<0.99998) // 原始代码
+        if(p3dC1.at<float>(2)<=0 || cosParallax>0.99998 || cosParallax<0.9) // 更改后的代码，这个初始化更快
             continue;
 
         // Check depth in front of second camera (only if enough parallax, as "infinite" points can easily go to negative depth)
         // 讲空间点p3dC1变换到第2个相机坐标系下变为p3dC2
         cv::Mat p3dC2 = R*p3dC1+t;	
 		//判断过程和上面的相同
-        if(p3dC2.at<float>(2)<=0 && cosParallax<0.99998)
+        // if(p3dC2.at<float>(2)<=0 && cosParallax<0.99998) // 原始代码
+        if(p3dC2.at<float>(2)<=0 || cosParallax>0.99998 || cosParallax<0.9) // 更改后的代码，这个初始化更快
             continue;
+        // std::cout << "cosParallax = " << cosParallax << " " << p3dC1.at<float>(2) << " " << p3dC2.at<float>(2) << std::endl;
 
         // Step 5 第三关：计算空间点在参考帧和当前帧上的重投影误差，如果大于阈值则舍弃
         // Check reprojection error in first image
@@ -1697,6 +1701,7 @@ int Initializer::CheckRT(const cv::Mat &R, const cv::Mat &t, const vector<cv::Ke
         // !排序后并没有取最小的视差角，而是取一个较小的视差角
 		// 作者的做法：如果经过检验过后的有效3D点小于50个，那么就取最后那个最小的视差角(cos值最大)
 		// 如果大于50个，就取排名第50个的较小的视差角即可，为了避免3D点太多时出现太小的视差角 
+        //? 可能用中值更好一点？
         size_t idx = min(50,int(vCosParallax.size()-1));
 		//将这个选中的角弧度制转换为角度制
         parallax = acos(vCosParallax[idx])*180/CV_PI;

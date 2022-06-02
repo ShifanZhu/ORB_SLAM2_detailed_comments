@@ -50,9 +50,9 @@ Map::Map():mnMaxKFid(0)
 void Map::AddKeyFrame(KeyFrame *pKF)
 {
     unique_lock<mutex> lock(mMutexMap);
-    mspKeyFrames.insert(pKF);
+    mspKeyFrames.insert(pKF); // 插入关键帧
     if(pKF->mnId>mnMaxKFid)
-        mnMaxKFid=pKF->mnId;
+        mnMaxKFid=pKF->mnId; // 如果此关键帧id更大，则更新当前地图中具有最大ID的关键帧
 }
 
 /*

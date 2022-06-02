@@ -398,7 +398,7 @@ protected:
 
     cv::Mat Cw; ///< Stereo middel point. Only for visualization
 
-    /// MapPoints associated to keypoints
+    /// MapPoints associated to keypoints, 应该是associated to keyframes
     std::vector<MapPoint*> mvpMapPoints;
 
     // BoW

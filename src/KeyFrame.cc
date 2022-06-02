@@ -74,17 +74,22 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap, KeyFrameDatabase *pKFDB):
     SetPose(F.mTcw);
 }
 
-// Bag of Words Representation 计算词袋表示
+// Bag of Words Representation 计算当前帧特征点对应的词袋表示Bow
+// 主要是mBowVec和mFeatVec
 void KeyFrame::ComputeBoW()
 {
-    // 只有当词袋向量或者节点和特征序号的特征向量为空的时候执行
+    // 只有当词袋向量或者节点和特征序号的特征向量为空的时候执行。如果之前计算过就跳过
     if(mBowVec.empty() || mFeatVec.empty())
     {
         // 那么就从当前帧的描述子中转换得到词袋信息
+        // 将描述子mDescriptors转换为DBOW要求的输入格式
         vector<cv::Mat> vCurrentDesc = Converter::toDescriptorVector(mDescriptors);
         // Feature vector associate features with nodes in the 4th level (from leaves up)
         // We assume the vocabulary tree has 6 levels, change the 4 otherwise  //?
-        mpORBvocabulary->transform(vCurrentDesc,mBowVec,mFeatVec,4);
+        mpORBvocabulary->transform(vCurrentDesc,	//当前的描述子vector
+								   mBowVec,			//输出，词袋向量，记录的是单词的id及其对应权重TF-IDF值
+								   mFeatVec,		//输出，记录node id及其对应的图像 feature对应的索引
+								   4);				//4表示从叶节点向前数的层数
     }
 }
 
@@ -881,7 +886,7 @@ float KeyFrame::ComputeSceneMedianDepth(const int q)
 
     vector<float> vDepths;
     vDepths.reserve(N);
-    cv::Mat Rcw2 = Tcw_.row(2).colRange(0,3);
+    cv::Mat Rcw2 = Tcw_.row(2).colRange(0,3); // 只取了变换矩阵第三行，因为只需要计算z
     Rcw2 = Rcw2.t();
     float zcw = Tcw_.at<float>(2,3);
     // 遍历每一个地图点,计算并保存其在当前关键帧下的深度
@@ -890,8 +895,8 @@ float KeyFrame::ComputeSceneMedianDepth(const int q)
         if(mvpMapPoints[i])
         {
             MapPoint* pMP = mvpMapPoints[i];
-            cv::Mat x3Dw = pMP->GetWorldPos();
-            float z = Rcw2.dot(x3Dw)+zcw; // (R*x3Dw+t)的第三行，即z
+            cv::Mat x3Dw = pMP->GetWorldPos(); // 世界坐标系下的坐标
+            float z = Rcw2.dot(x3Dw)+zcw; // (R*x3Dw+t)的第三行，即地图点在当前相机坐标系的坐标深度，z
             vDepths.push_back(z);
         }
     }

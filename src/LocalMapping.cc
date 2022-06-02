@@ -529,7 +529,7 @@ void LocalMapping::CreateNewMapPoints()
                 float v1 = fy1*y1*invz1+cy1;
                 float errX1 = u1 - kp1.pt.x;
                 float errY1 = v1 - kp1.pt.y;
-                float errX1_r = u1_r - kp1_ur;
+                float errX1_r = u1_r - kp1_ur; // 假想的右目坐标 - 双目匹配出的坐标
                 // 自由度为3，卡方检验阈值是7.8
                 if((errX1*errX1+errY1*errY1+errX1_r*errX1_r)>7.8*sigmaSquare1)
                     continue;

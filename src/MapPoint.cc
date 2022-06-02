@@ -159,6 +159,7 @@ void MapPoint::AddObservation(KeyFrame* pKF, size_t idx)
     // 如果没有添加过观测，记录下能观测到该MapPoint的KF和该MapPoint在KF中的索引
     mObservations[pKF]=idx;
 
+    // nObs 记录被观测到的相机数目，单目+1，双目或RGB-D则+2
     if(pKF->mvuRight[idx]>=0)
         nObs+=2; // 双目或者rgbd
     else

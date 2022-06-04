@@ -293,6 +293,7 @@ void LocalMapping::MapPointCulling()
 
 /**
  * @brief 用当前关键帧与相邻关键帧通过三角化产生新的地图点，使得跟踪更稳
+ * 此处是匹配出来的新地图点
  * 
  */
 void LocalMapping::CreateNewMapPoints()

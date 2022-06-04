@@ -1661,6 +1661,7 @@ void Tracking::CreateNewKeyFrame()
 
     // 这段代码和 Tracking::UpdateLastFrame 中的那一部分代码功能相同
     // Step 3：对于双目或rgbd摄像头，为当前帧生成新的地图点；单目无操作
+    // 相对于充分利用双目和rgbd相机的深度值，提升跟踪鲁棒性
     if(mSensor!=System::MONOCULAR)
     {
         // 根据Tcw计算mRcw、mtcw和mRwc、mOw

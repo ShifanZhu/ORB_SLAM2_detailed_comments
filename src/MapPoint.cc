@@ -496,7 +496,7 @@ bool MapPoint::IsInKeyFrame(KeyFrame *pKF)
 void MapPoint::UpdateNormalAndDepth()
 {
     // Step 1 获得观测到该地图点的所有关键帧、坐标等信息
-    map<KeyFrame*,size_t> observations;
+    map<KeyFrame*,size_t> observations; // 存储该点所有观测
     KeyFrame* pRefKF;
     cv::Mat Pos;
     {
@@ -520,19 +520,21 @@ void MapPoint::UpdateNormalAndDepth()
     int n=0;
     for(map<KeyFrame*,size_t>::iterator mit=observations.begin(), mend=observations.end(); mit!=mend; mit++)
     {
-        KeyFrame* pKF = mit->first;
-        cv::Mat Owi = pKF->GetCameraCenter();
+        KeyFrame* pKF = mit->first; // first是观测到该点的关键帧，second是该点在关键帧中的idx
+        cv::Mat Owi = pKF->GetCameraCenter(); // 相机光心所在世界坐标系下的位置
         // 获得地图点和观测到它关键帧的向量并归一化
         cv::Mat normali = mWorldPos - Owi;
-        normal = normal + normali/cv::norm(normali);                       
+        normal = normal + normali/cv::norm(normali); // 矢量相加                    
         n++;
     } 
 
     cv::Mat PC = Pos - pRefKF->GetCameraCenter();                           // 参考关键帧相机指向地图点的向量（在世界坐标系下的表示）
     const float dist = cv::norm(PC);                                        // 该点到参考关键帧相机的距离
     const int level = pRefKF->mvKeysUn[observations[pRefKF]].octave;        // 观测到该地图点的当前帧的特征点在金字塔的第几层
+                                                                            // observations[pRefKF]为该点在当前参考关键帧的idx
     const float levelScaleFactor =  pRefKF->mvScaleFactors[level];          // 当前金字塔层对应的尺度因子，scale^n，scale=1.2，n为层数
     const int nLevels = pRefKF->mnScaleLevels;                              // 金字塔总层数，默认为8
+                                                                            // 把这些数据拿出来，因为之后可能会用到
 
     {
         unique_lock<mutex> lock3(mMutexPos);
@@ -589,7 +591,7 @@ int MapPoint::PredictScale(const float &currentDist, KeyFrame* pKF)
     }
 
     // 取对数
-    int nScale = ceil(log(ratio)/pKF->mfLogScaleFactor);
+    int nScale = ceil(log(ratio)/pKF->mfLogScaleFactor); // nScale表示在哪一层
     if(nScale<0)
         nScale = 0;
     else if(nScale>=pKF->mnScaleLevels)

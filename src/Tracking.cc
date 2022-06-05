@@ -1512,7 +1512,7 @@ bool Tracking::TrackLocalMap()
  */
 bool Tracking::NeedNewKeyFrame()
 {
-    // Step 1：纯VO模式下不插入关键帧
+    // Step 1：纯VO模式下不插入关键帧 (论文框图中上边)
     if(mbOnlyTracking)
         return false;
 
@@ -1540,10 +1540,11 @@ bool Tracking::NeedNewKeyFrame()
     if(nKFs<=2)
         nMinObs=2;
     // 参考关键帧地图点中观测的数目>= nMinObs的地图点数目
-    int nRefMatches = mpReferenceKF->TrackedMapPoints(nMinObs);
+    int nRefMatches = mpReferenceKF->TrackedMapPoints(nMinObs); // mpReferenceKF是当前帧的参考关键帧
 
     // Local Mapping accept keyframes?
     // Step 5：查询局部地图线程是否繁忙，当前能否接受新的关键帧
+    // 有可能在做关键帧的BA、生成新的地图点等
     bool bLocalMappingIdle = mpLocalMapper->AcceptKeyFrames();
 
     // Check how many "close" points are being tracked and how many could be potentially created.
@@ -1599,6 +1600,7 @@ bool Tracking::NeedNewKeyFrame()
     // Condition 2: Few tracked points compared to reference keyframe. Lots of visual odometry compared to map matches.
     // Step 7.5：和参考帧相比当前跟踪到的点太少 或者满足bNeedToInsertClose；同时跟踪到的内点还不能太少
     const bool c2 = ((mnMatchesInliers<nRefMatches*thRefRatio|| bNeedToInsertClose) && mnMatchesInliers>15);
+                    // 单目                                      双目或RGBD
 
     if((c1a||c1b||c1c)&&c2)
     {
@@ -1612,7 +1614,7 @@ bool Tracking::NeedNewKeyFrame()
         }
         else
         {
-            mpLocalMapper->InterruptBA();
+            mpLocalMapper->InterruptBA(); // 关掉局部建图线程的BA
             if(mSensor!=System::MONOCULAR)
             {
                 // 队列里不能阻塞太多关键帧

@@ -1658,8 +1658,8 @@ void Tracking::CreateNewKeyFrame()
 
     // Step 2：将当前关键帧设置为当前帧的参考关键帧
     // 在UpdateLocalKeyFrames函数中会将与当前关键帧共视程度最高的关键帧设定为当前帧的参考关键帧
-    mpReferenceKF = pKF;
-    mCurrentFrame.mpReferenceKF = pKF;
+    mpReferenceKF = pKF; // 设置为后边帧的参考关键帧
+    mCurrentFrame.mpReferenceKF = pKF; // 设置为当前帧的参考关键帧
 
     // 这段代码和 Tracking::UpdateLastFrame 中的那一部分代码功能相同
     // Step 3：对于双目或rgbd摄像头，为当前帧生成新的地图点；单目无操作
@@ -1672,7 +1672,7 @@ void Tracking::CreateNewKeyFrame()
         // We sort points by the measured depth by the stereo/RGBD sensor.
         // We create all those MapPoints whose depth < mThDepth.
         // If there are less than 100 close points we create the 100 closest.
-        // Step 3.1：得到当前帧有深度值的特征点（不一定是地图点）
+        // Step 3.1：得到当前帧有深度值的特征点（不一定是地图点，因为不一定跟踪成功）
         vector<pair<float,int> > vDepthIdx;
         vDepthIdx.reserve(mCurrentFrame.N);
         for(int i=0; i<mCurrentFrame.N; i++)
@@ -1687,7 +1687,7 @@ void Tracking::CreateNewKeyFrame()
 
         if(!vDepthIdx.empty())
         {
-            // Step 3.2：按照深度从小到大排序
+            // Step 3.2：按照深度从小到大排序 （深度值越近越准）
             sort(vDepthIdx.begin(),vDepthIdx.end());
 
             // Step 3.3：从中找出不是地图点的生成临时地图点 
@@ -1695,7 +1695,7 @@ void Tracking::CreateNewKeyFrame()
             int nPoints = 0;
             for(size_t j=0; j<vDepthIdx.size();j++)
             {
-                int i = vDepthIdx[j].second;
+                int i = vDepthIdx[j].second; // second是id
 
                 bool bCreateNew = false;
 
@@ -1747,8 +1747,8 @@ void Tracking::CreateNewKeyFrame()
     mpLocalMapper->SetNotStop(false);
 
     // 当前帧成为新的关键帧，更新
-    mnLastKeyFrameId = mCurrentFrame.mnId;
-    mpLastKeyFrame = pKF;
+    mnLastKeyFrameId = mCurrentFrame.mnId; // 更新上一个关键帧的id
+    mpLastKeyFrame = pKF; // 更新上一个关键帧
 }
 
 

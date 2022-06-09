@@ -534,7 +534,7 @@ void KeyFrame::UpdateConnections()
             // mpParent是当前关键帧的父关键帧 （共视程度最高的）
             mpParent = mvpOrderedConnectedKeyFrames.front();
             // 建立双向连接关系，将当前关键帧作为其子关键帧
-            mpParent->AddChild(this);
+            mpParent->AddChild(this); // this 指向自己
             mbFirstConnection = false;
         }
     }
@@ -624,7 +624,7 @@ void KeyFrame::SetErase()
         }
     }
 
-    // mbToBeErased：删除之前记录的想要删但时机不合适没有删除的帧
+    // 如果mbToBeErased为true，则删除之前记录的想要删但时机不合适没有删除的帧
     if(mbToBeErased)
     {
         SetBadFlag();

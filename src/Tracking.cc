@@ -1712,6 +1712,7 @@ void Tracking::CreateNewKeyFrame()
                 // 如果需要就新建地图点，这里的地图点不是临时的，是全局地图中新建地图点，用于跟踪
                 if(bCreateNew)
                 {
+                    //当某个特征点的深度信息或者双目信息有效时,将它反投影到三维世界坐标系中
                     cv::Mat x3D = mCurrentFrame.UnprojectStereo(i);
                     MapPoint* pNewMP = new MapPoint(x3D,pKF,mpMap);
                     // 这些添加属性的操作是每次创建MapPoint后都要做的

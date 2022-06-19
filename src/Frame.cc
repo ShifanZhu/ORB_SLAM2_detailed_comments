@@ -856,8 +856,8 @@ void Frame::ComputeStereoMatches()
     // 金字塔顶层（0层）图像高 nRows
     const int nRows = mpORBextractorLeft->mvImagePyramid[0].rows;
 
-	// 二维vector存储每一行的orb特征点的列坐标，为什么是vector，因为每一行的特征点有可能不一样，例如
-    // vRowIndices[0] = [1，2，5，8, 11]   第1行有5个特征点,他们的列号（即x坐标）分别是1,2,5,8,11
+	// 二维vector存储每一行的orb特征点的列坐标的索引！，为什么是vector，因为每一行的特征点有可能不一样，例如
+    // vRowIndices[0] = [1，2，5，8, 11]   第1行有5个特征点,他们的特征点索引分别是1,2,5,8,11
     // vRowIndices[1] = [2，6，7，9, 13, 17, 20]  第2行有7个特征点.etc
     vector<vector<size_t> > vRowIndices(nRows, vector<size_t>());
     for(int i=0; i<nRows; i++) vRowIndices[i].reserve(200);
@@ -900,7 +900,7 @@ void Frame::ComputeStereoMatches()
     // 为左图每一个特征点il，在右图搜索最相似的特征点ir
     for(int iL=0; iL<N; iL++) {
 
-		const cv::KeyPoint &kpL = mvKeys[iL];
+		const cv::KeyPoint &kpL = mvKeys[iL]; //原始左图像提取出的特征点（未校正）
         const int &levelL = kpL.octave;
         const float &vL = kpL.pt.y;
         const float &uL = kpL.pt.x;
@@ -928,17 +928,18 @@ void Frame::ComputeStereoMatches()
             const cv::KeyPoint &kpR = mvKeysRight[iR];
 
             // 左图特征点il与带匹配点ic的空间尺度差超过2，放弃
+            // 只在相邻的金字塔层匹配
             if(kpR.octave<levelL-1 || kpR.octave>levelL+1)
                 continue;
 
             // 使用列坐标(x)进行匹配，和stereomatch一样
-            const float &uR = kpR.pt.x;
+            const float &uR = kpR.pt.x; // 右图特征点的x坐标
 
             // 超出理论搜索范围[minU, maxU]，可能是误匹配，放弃
             if(uR >= minU && uR <= maxU) {
 
                 // 计算匹配点il和待匹配点ic的相似度dist
-                const cv::Mat &dR = mDescriptorsRight.row(iR);
+                const cv::Mat &dR = mDescriptorsRight.row(iR); // 取出右图特征点的描述子
                 const int dist = ORBmatcher::DescriptorDistance(dL,dR);
 
 				//统计最小相似度及其对应的列坐标(x)
@@ -954,7 +955,7 @@ void Frame::ComputeStereoMatches()
         // Step 3. 精确匹配. 
         if(bestDist<thOrbDist) {
             // 计算右图特征点x坐标和对应的金字塔尺度
-            const float uR0 = mvKeysRight[bestIdxR].pt.x;
+            const float uR0 = mvKeysRight[bestIdxR].pt.x; // 右图的最佳匹配
             const float scaleFactor = mvInvScaleFactors[kpL.octave];
             
             // 尺度缩放后的左右图特征点坐标
@@ -1039,7 +1040,7 @@ void Frame::ComputeStereoMatches()
             const float dist1 = vDists[L+bestincR-1];	
             const float dist2 = vDists[L+bestincR];
             const float dist3 = vDists[L+bestincR+1];
-            const float deltaR = (dist1-dist3)/(2.0f*(dist1+dist3-2.0f*dist2));
+            const float deltaR = (dist1-dist3)/(2.0f*(dist1+dist3-2.0f*dist2)); // 论文公式
 
             // 亚像素精度的修正量应该是在[-1,1]之间，否则就是误匹配
             if(deltaR<-1 || deltaR>1)

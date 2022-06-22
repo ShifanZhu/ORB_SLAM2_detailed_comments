@@ -1662,7 +1662,7 @@ void Tracking::CreateNewKeyFrame()
     mCurrentFrame.mpReferenceKF = pKF; // 设置为当前帧的参考关键帧
 
     // 这段代码和 Tracking::UpdateLastFrame 中的那一部分代码功能相同
-    // Step 3：对于双目或rgbd摄像头，为当前帧生成新的地图点；单目无操作
+    // Step 3：对于双目或rgbd摄像头，为当前帧生成新的临时地图点（最终会删除）；单目无操作
     // 相对于充分利用双目和rgbd相机的深度值，提升跟踪鲁棒性
     if(mSensor!=System::MONOCULAR)
     {

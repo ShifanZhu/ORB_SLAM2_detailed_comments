@@ -185,6 +185,9 @@ bool Initializer::Initialize(const Frame &CurrentFrame, const vector<int> &vMatc
     //这两个是经过RANSAC算法后计算出来的单应矩阵和基础矩阵
     cv::Mat H, F; 
 
+    // 基础矩阵自由度为7，秩为2
+    // 单应矩阵自由度为8（尺度不可观），秩为3
+    // 开两个临时线程计算，加速
     // 构造线程来计算H矩阵及其得分
     // thread方法比较特殊，在传递引用的时候，外层需要用ref来进行引用传递，否则就是浅拷贝
     thread threadH(&Initializer::FindHomography,	//该线程的主函数

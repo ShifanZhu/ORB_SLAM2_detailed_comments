@@ -884,13 +884,13 @@ void Frame::ComputeStereoMatches()
     }
 
     // Step 2 -> 3. 粗匹配 + 精匹配
-    // 对于立体矫正后的两张图，在列方向(x)存在最大视差maxd和最小视差mind
+    // 对于立体矫正后的两张图，在列方向(x)存在最大视差maxD和最小视差minD
     // 也即是左图中任何一点p，在右图上的匹配点的范围为应该是[p - maxd, p - mind], 而不需要遍历每一行所有的像素
-    // maxd = baseline * length_focal / minZ
-    // mind = baseline * length_focal / maxZ
+    // maxD = baseline * length_focal / minZ
+    // minD = baseline * length_focal / maxZ
 
     const float minZ = mb;
-    const float minD = 0;			 
+    const float minD = 0;
     const float maxD = mbf/minZ; 
 
     // 保存sad块匹配相似度和左图特征点索引
@@ -967,7 +967,7 @@ void Frame::ComputeStereoMatches()
             // w表示sad相似度的窗口半径
             const int w = 5;
 
-            // 提取左图中，以特征点(scaleduL,scaledvL)为中心, 半径为w的图像快patch
+            // 提取左图中，以特征点(scaleduL,scaledvL)为中心, 边长为2w的图像块patch
             cv::Mat IL = mpORBextractorLeft->mvImagePyramid[kpL.octave].rowRange(scaledvL-w,scaledvL+w+1).colRange(scaleduL-w,scaleduL+w+1);
             IL.convertTo(IL,CV_32F);
             
@@ -1062,7 +1062,7 @@ void Frame::ComputeStereoMatches()
                 // Step 5. 最优视差值/深度选择.
                 mvDepth[iL]=mbf/disparity;
                 mvuRight[iL] = bestuR;
-                vDistIdx.push_back(pair<int,int>(bestDist,iL));
+                vDistIdx.push_back(pair<int,int>(bestDist,iL)); // best distance & index
         }   
     }
     }
@@ -1070,7 +1070,7 @@ void Frame::ComputeStereoMatches()
     // 块匹配相似度阈值判断，归一化sad最小，并不代表就一定是匹配的，比如光照变化、弱纹理、无纹理等同样会造成误匹配
     // 误匹配判断条件  norm_sad > 1.5 * 1.4 * median
     sort(vDistIdx.begin(),vDistIdx.end());
-    const float median = vDistIdx[vDistIdx.size()/2].first;
+    const float median = vDistIdx[vDistIdx.size()/2].first; // 为什么取中值？因为中值不受离群点的影响
     const float thDist = 1.5f*1.4f*median;
 
     for(int i=vDistIdx.size()-1;i>=0;i--) {

@@ -553,7 +553,7 @@ int ORBmatcher::SearchByProjection(KeyFrame* pKF, cv::Mat Scw, const vector<MapP
 }
 
 /**
- * @brief 单目初始化中用于参考帧和当前帧的特征点匹配
+ * @brief 单目初始化中用于参考帧和当前帧的特征点匹配（只考虑第0层的）
  * 步骤
  * Step 1 构建旋转直方图
  * Step 2 在半径窗口内搜索当前帧F2中所有的候选匹配特征点 
@@ -573,6 +573,7 @@ int ORBmatcher::SearchForInitialization(Frame &F1, Frame &F2, vector<cv::Point2f
 {
     int nmatches=0; // 匹配好的个数
     // F1中特征点和F2中匹配关系，注意是按照F1特征点数目分配空间
+    // e.g. vnMatches12[0] = 5, F1中第一个特征点和 F2第五个特征点匹配
     vnMatches12 = vector<int>(F1.mvKeysUn.size(),-1);
 
     // Step 1 构建旋转直方图，HISTO_LENGTH = 30
@@ -594,7 +595,7 @@ int ORBmatcher::SearchForInitialization(Frame &F1, Frame &F2, vector<cv::Point2f
     {
         cv::KeyPoint kp1 = F1.mvKeysUn[i1];
         int level1 = kp1.octave;
-        // 只使用原始图像上提取的特征点,level==0
+        // 只使用原始图像上提取的特征点,level==0 （只考虑第0层的）
         if(level1>0)
             continue;
 

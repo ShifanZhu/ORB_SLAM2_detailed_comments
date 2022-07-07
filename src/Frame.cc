@@ -581,6 +581,7 @@ bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit)
 /**
  * @brief 找到在 以x,y为中心,半径为r的圆形内且金字塔层级在[minLevel, maxLevel]的特征点
  * 此处x,y的第一帧的特征点坐标，也在第二帧同样的位置找
+ * 在大网格搜索为了速度快
  * 
  * @param[in] x                     特征点坐标x
  * @param[in] y                     特征点坐标y
@@ -597,13 +598,13 @@ vector<size_t> Frame::GetFeaturesInArea(const float &x, const float  &y, const f
 
     // Step 1 计算半径为r圆左右上下边界所在的网格列和行的id
     // 查找半径为r的圆左侧边界所在网格列坐标。这个地方有点绕，慢慢理解下：
-    // FRAME_GRID_COLS 是列方向有多少个网格
+    // FRAME_GRID_COLS 是列方向有多少个网格, mnMinX是图像左边界，mnMaxX是图像右边界
     // (mnMaxX-mnMinX)/FRAME_GRID_COLS：表示列方向每个网格可以平均分得几个像素（肯定大于1）
     // mfGridElementWidthInv=FRAME_GRID_COLS/(mnMaxX-mnMinX) 是上面倒数，表示每个像素可以均分几个网格列（肯定小于1）
 	// (x-mnMinX-r)，可以看做是从图像的左边界mnMinX到半径r的圆的左边界区域占的像素列数
 	// 两者相乘，就是求出那个半径为r的圆的左侧边界在哪个网格列中
     // 保证nMinCellX 结果大于等于0
-    const int nMinCellX = max(0,(int)floor( (x-mnMinX-r)*mfGridElementWidthInv));
+    const int nMinCellX = max(0,(int)floor( (x-mnMinX-r)*mfGridElementWidthInv)); // 大网格的X方向idx
 
 
 	// 如果最终求得的圆的左边界所在的网格列超过了设定了上限，那么就说明计算出错，找不到符合要求的特征点，返回空vector
@@ -630,7 +631,7 @@ vector<size_t> Frame::GetFeaturesInArea(const float &x, const float  &y, const f
     //? 改为 const bool bCheckLevels = (minLevel>=0) || (maxLevel>=0);
     const bool bCheckLevels = (minLevel>0) || (maxLevel>=0);
 
-    // Step 2 遍历圆形区域内的所有网格，寻找满足条件的候选特征点，并将其index放到输出里
+    // Step 2 遍历圆形区域内的所有大网格，寻找满足条件的候选特征点，并将其index放到输出里
     for(int ix = nMinCellX; ix<=nMaxCellX; ix++)
     {
         for(int iy = nMinCellY; iy<=nMaxCellY; iy++)
@@ -652,13 +653,13 @@ vector<size_t> Frame::GetFeaturesInArea(const float &x, const float  &y, const f
 					// cv::KeyPoint::octave中表示的是从金字塔的哪一层提取的数据
 					// 保证特征点是在金字塔层级minLevel和maxLevel之间，不是的话跳过
                     if(kpUn.octave<minLevel)
-                        continue;
+                        continue; // 不合法
                     if(maxLevel>=0)		//? 为何特意又强调？感觉多此一举
                         if(kpUn.octave>maxLevel)
-                            continue;
+                            continue; // 不合法
                 }               
 
-                // 通过检查，计算候选特征点到圆中心的距离，查看是否是在这个圆形区域之内
+                // 通过检查，计算候选特征点到圆中心的距离，查看是否是在这个圆形区域之内。是正方形区域吧
                 const float distx = kpUn.pt.x-x;
                 const float disty = kpUn.pt.y-y;
 

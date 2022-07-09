@@ -631,7 +631,7 @@ int ORBmatcher::SearchForInitialization(Frame &F1, Frame &F2, vector<cv::Point2f
             {
                 bestDist2=bestDist;
                 bestDist=dist;
-                bestIdx2=i2;
+                bestIdx2=i2; // bestIdx2存的是最佳候选特征点在F2中的index
             }
             else if(dist<bestDist2)
             {
@@ -644,9 +644,9 @@ int ORBmatcher::SearchForInitialization(Frame &F1, Frame &F2, vector<cv::Point2f
         if(bestDist<=TH_LOW)
         {
             // 最佳距离比次佳距离要小于设定的比例，这样特征点辨识度更高
-            if(bestDist<(float)bestDist2*mfNNratio)
+            if(bestDist<(float)bestDist2*mfNNratio) // mfNNratio越小辨识度越高
             {
-                // 如果找到的候选特征点对应F1中特征点已经匹配过了，说明发生了重复匹配，将原来的匹配也删掉
+                // 如果找到的候选特征点对应F1中特征点已经匹配过了，说明发生了重复匹配，将原来的匹配也删掉，因为我们不知道究竟哪个是对的
                 if(vnMatches21[bestIdx2]>=0)
                 {
                     vnMatches12[vnMatches21[bestIdx2]]=-1;
@@ -666,14 +666,14 @@ int ORBmatcher::SearchForInitialization(Frame &F1, Frame &F2, vector<cv::Point2f
                     float rot = F1.mvKeysUn[i1].angle-F2.mvKeysUn[bestIdx2].angle;
                     if(rot<0.0)
                         rot+=360.0f;
-                    // 前面factor = HISTO_LENGTH/360.0f 
+                    // 前面factor = HISTO_LENGTH/360.0f // HISTO_LENGTH值为30，所以factor为1/12
                     // bin = rot / 360.of * HISTO_LENGTH 表示当前rot被分配在第几个直方图bin  
                     int bin = round(rot*factor);
                     // 如果bin 满了又是一个轮回
                     if(bin==HISTO_LENGTH)
                         bin=0;
                     assert(bin>=0 && bin<HISTO_LENGTH);
-                    rotHist[bin].push_back(i1);
+                    rotHist[bin].push_back(i1); // i1保存是F1对应特征点索引
                 }
             }
         }
@@ -687,7 +687,7 @@ int ORBmatcher::SearchForInitialization(Frame &F1, Frame &F2, vector<cv::Point2f
         int ind2=-1;
         int ind3=-1;
         // 筛选出在旋转角度差落在在直方图区间内数量最多的前三个bin的索引
-        ComputeThreeMaxima(rotHist,HISTO_LENGTH,ind1,ind2,ind3);
+        ComputeThreeMaxima(rotHist,HISTO_LENGTH,ind1,ind2,ind3); // ind的范围是0~30，最多的可能是ind123可能是：0 1 29
 
         for(int i=0; i<HISTO_LENGTH; i++)
         {
@@ -2027,7 +2027,7 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, KeyFrame *pKF, const set
  * @brief 筛选出在旋转角度差落在在直方图区间内数量最多的前三个bin的索引
  * 
  * @param[in] histo         匹配特征点对旋转方向差直方图
- * @param[in] L             直方图尺寸
+ * @param[in] L             直方图尺寸 e.g. 30
  * @param[in & out] ind1          bin值第一大对应的索引
  * @param[in & out] ind2          bin值第二大对应的索引
  * @param[in & out] ind3          bin值第三大对应的索引

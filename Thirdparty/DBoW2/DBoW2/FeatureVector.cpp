@@ -33,6 +33,7 @@ FeatureVector::~FeatureVector(void)
  * 
  * @param[in] id              节点ID，内部包含很多单词
  * @param[in] i_feature       特征点在图像中的索引
+ * id是最相似的点所在的市的id，然后把该市里的县村id存到该市id下边，之后我们搜索的时候直接搜索市里边，比较快
  */
 void FeatureVector::addFeature(NodeId id, unsigned int i_feature)
 {

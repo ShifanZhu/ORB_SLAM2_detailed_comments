@@ -1152,7 +1152,7 @@ void TemplatedVocabulary<TDescriptor,F>::transform(
   
   typename vector<TDescriptor>::const_iterator fit;
   
-  if(m_weighting == TF || m_weighting == TF_IDF)
+  if(m_weighting == TF || m_weighting == TF_IDF) // 逆文档频率，计算权重相关
   {
     unsigned int i_feature = 0;
     // 遍历图像中所有的特征点
@@ -1163,6 +1163,8 @@ void TemplatedVocabulary<TDescriptor,F>::transform(
       WordValue w;      // 叶子节点Word对应的权重
 
       //  将当前描述子转化为Word id， Word weight，节点所属的父节点id（这里的父节点不是叶子的上一层，它距离叶子深度为levelsup）
+      // e.g. levelup 为0则是叶子结点，一般不会为3。如果levelup为3则在包括当前层的往上一共三层范围内搜索，约小差距越大。levelup为0
+      // 相当于只在村子里找相似，levelup为1则在县里找相似
       // w is the idf value if TF_IDF, 1 if TF 
       transform(*fit, id, w, &nid, levelsup);
       
@@ -1170,7 +1172,7 @@ void TemplatedVocabulary<TDescriptor,F>::transform(
       { 
         // 如果Word 权重大于0，将其添加到BowVector 和 FeatureVector
         v.addWeight(id, w);
-        fv.addFeature(nid, i_feature);
+        fv.addFeature(nid, i_feature); // nid是最相似的所在的市，i_feature是描述子所在的索引index
       }
     }
     
@@ -1233,7 +1235,8 @@ void TemplatedVocabulary<TDescriptor,F>::transform
  * @param[in] feature                 特征描述子
  * @param[in & out] word_id           Word id
  * @param[in & out] weight            Word 权重
- * @param[in & out] nid               记录当前描述子转化为Word后所属的 node id，它距离叶子深度为levelsup
+ * @param[in & out] nid               记录当前描述子转化为Word后所属的 node id，它距离叶子深度为levelsup，相当于不是最相似
+ *                                    的所在的村，而是最相似的所在的市
  * @param[in] levelsup                距离叶子的深度
  */
 template<class TDescriptor, class F>
@@ -1278,13 +1281,13 @@ void TemplatedVocabulary<TDescriptor,F>::transform(const TDescriptor &feature,
     
     // 记录当前描述子转化为Word后所属的 node id，它距离叶子深度为levelsup
     if(nid != NULL && current_level == nid_level)
-      *nid = final_id;
+      *nid = final_id; // 相当于是最相似的点所在的市，而不是所在的村
     
   } while( !m_nodes[final_id].isLeaf() );
 
   // turn node id into word id
   // 取出 vocabulary tree中node距离当前feature 描述子距离最小的那个node的 Word id 和 weight
-  word_id = m_nodes[final_id].word_id;
+  word_id = m_nodes[final_id].word_id; // final_id 是最相似的点所在的村
   weight = m_nodes[final_id].weight;
 }
 

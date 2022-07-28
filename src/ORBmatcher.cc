@@ -268,18 +268,18 @@ int ORBmatcher::SearchByBoW(KeyFrame* pKF,Frame &F, vector<MapPoint*> &vpMapPoin
 
     // We perform the matching over ORB that belong to the same vocabulary node (at a certain level)
     // 将属于同一节点(特定层)的ORB特征进行匹配
-    DBoW2::FeatureVector::const_iterator KFit = vFeatVecKF.begin();
-    DBoW2::FeatureVector::const_iterator Fit = F.mFeatVec.begin();
+    DBoW2::FeatureVector::const_iterator KFit = vFeatVecKF.begin(); // 关键帧
+    DBoW2::FeatureVector::const_iterator Fit = F.mFeatVec.begin(); // 普通帧
     DBoW2::FeatureVector::const_iterator KFend = vFeatVecKF.end();
     DBoW2::FeatureVector::const_iterator Fend = F.mFeatVec.end();
 
     while(KFit != KFend && Fit != Fend)
     {
-        // Step 1：分别取出属于同一node的ORB特征点(只有属于同一node，才有可能是匹配点)
+        // Step 1：分别取出属于同一node的ORB特征点(只有属于同一node，才有可能是匹配点。只有同一个市的，才有可能市匹配点)
         // first 元素就是node id，遍历
         if(KFit->first == Fit->first) 
         {
-            // second 是该node内存储的feature index
+            // second 是该node（市）内存储的feature index（村）
             const vector<unsigned int> vIndicesKF = KFit->second;
             const vector<unsigned int> vIndicesF = Fit->second;
 
@@ -874,6 +874,7 @@ int ORBmatcher::SearchByBoW(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint *> &
 /*
  * @brief 利用基础矩阵F12极线约束，用BoW加速匹配两个关键帧的未匹配的特征点，产生新的匹配点对
  * 具体来说，pKF1图像的每个特征点与pKF2图像同一node节点的所有特征点依次匹配，判断是否满足对极几何约束，满足约束就是匹配的特征点
+ * 其中很关键的一点是要判断两个KF之间的距离，过近会导致三角化不准
  * @param pKF1          关键帧1
  * @param pKF2          关键帧2
  * @param F12           从2到1的基础矩阵
@@ -1435,7 +1436,7 @@ int ORBmatcher::Fuse(KeyFrame *pKF, cv::Mat Scw, const vector<MapPoint *> &vpPoi
  * @param[in] s12               pKF2 到 pKF1 的Sim 变换中的尺度
  * @param[in] R12               pKF2 到 pKF1 的Sim 变换中的旋转矩阵
  * @param[in] t12               pKF2 到 pKF1 的Sim 变换中的平移向量
- * @param[in] th                搜索窗口的倍数
+ * @param[in] th                搜索窗口的倍数（搜索范围）
  * @return int                  新增的匹配点对数目
  */
 int ORBmatcher::SearchBySim3(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint*> &vpMatches12,

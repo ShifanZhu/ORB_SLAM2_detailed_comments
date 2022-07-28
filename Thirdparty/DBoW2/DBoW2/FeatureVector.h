@@ -19,6 +19,7 @@ namespace DBoW2 {
 
 /// Vector of nodes with indexes of local features
 class FeatureVector: 
+  // NodeId是节点，以及节点下所有特征点对应的描述子的index。如：某市对应的NodeId是5，vector存储市里所有的村的index
   public std::map<NodeId, std::vector<unsigned int> >
 {
 public:

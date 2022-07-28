@@ -1195,7 +1195,7 @@ bool Tracking::TrackReferenceKeyFrame()
     mCurrentFrame.SetPose(mLastFrame.mTcw); // 用上一次的Tcw设置初值，在PoseOptimization可以收敛快一些
 
     // Step 4:通过优化3D-2D的重投影误差来获得位姿
-    Optimizer::PoseOptimization(&mCurrentFrame);
+    Optimizer::PoseOptimization(&mCurrentFrame); // 只优化位姿，不优化3D点
 
     // Discard outliers
     // Step 5：剔除优化后的匹配点中的外点

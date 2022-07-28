@@ -1361,7 +1361,7 @@ bool Tracking::TrackWithMotionModel()
     // 设置投影以后，特征匹配过程中的搜索半径
     int th;
     if(mSensor!=System::STEREO)
-        th=15;//单目
+        th=15;//单目，不是很准，误差比较大，需要搜索范围大一点
     else
         th=7;//双目
 

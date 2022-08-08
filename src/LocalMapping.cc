@@ -209,6 +209,7 @@ void LocalMapping::ProcessNewKeyFrame()
         {
             if(!pMP->isBad())
             {
+                // 此处不需要 mlpRecentAddedMapPoints, 因为已经是检查过的留下来的好的地图点
                 if(!pMP->IsInKeyFrame(mpCurrentKeyFrame))
                 {
                     // 如果地图点不是来自当前帧的观测（比如来自局部地图点），为当前地图点添加观测

@@ -2050,7 +2050,7 @@ bool Tracking::Relocalization()
 
     // Relocalization is performed when tracking is lost
     // Track Lost: Query KeyFrame Database for keyframe candidates for relocalisation
-    // Step 2：用词袋找到与当前帧相似的附近的候选关键帧
+    // Step 2：用词袋找到与当前帧相似的附近的候选关键帧组，此处会找出好多帧，然后寻找匹配程度最高的帧来恢复当前帧的位姿
     vector<KeyFrame*> vpCandidateKFs = mpKeyFrameDB->DetectRelocalizationCandidates(&mCurrentFrame);
     
     // 如果没有和当前帧相似的候选关键帧，完蛋，退出
@@ -2062,7 +2062,7 @@ bool Tracking::Relocalization()
 
     // We perform first an ORB matching with each candidate
     // If enough matches are found we setup a PnP solver
-    ORBmatcher matcher(0.75,true);
+    ORBmatcher matcher(0.75,true); // 最优和次优评分的比例要大于0.75，检查方向
     //每个关键帧的解算器
     vector<PnPsolver*> vpPnPsolvers;
     vpPnPsolvers.resize(nKFs);
@@ -2088,7 +2088,7 @@ bool Tracking::Relocalization()
         else
         {
             // 当前帧和候选关键帧用BoW进行快速匹配，匹配结果记录在vvpMapPointMatches，nmatches表示匹配的数目
-            int nmatches = matcher.SearchByBoW(pKF,mCurrentFrame,vvpMapPointMatches[i]);
+            int nmatches = matcher.SearchByBoW(pKF,mCurrentFrame,vvpMapPointMatches[i]); // 初始粗匹配
             // 如果和当前帧的匹配数小于15,那么只能放弃这个关键帧
             if(nmatches<15)
             {
@@ -2098,8 +2098,9 @@ bool Tracking::Relocalization()
             else
             {
                 // 如果匹配数目够用，用匹配结果初始化EPnPsolver
-                // 为什么用EPnP? 因为计算复杂度低，精度高
+                // 为什么用EPnP? 因为计算复杂度低O(n)，精度高，只需要4个及以上的匹配点，适用于平面、非平面
                 PnPsolver* pSolver = new PnPsolver(mCurrentFrame,vvpMapPointMatches[i]);
+                // 比PnP效果好一些
                 pSolver->SetRansacParameters(
                     0.99,   //用于计算RANSAC迭代次数理论值的概率
                     10,     //最小内点数, 但是要注意在程序中实际上是min(给定最小内点数,最小集,内点数理论值),不一定使用这个
@@ -2122,7 +2123,7 @@ bool Tracking::Relocalization()
     ORBmatcher matcher2(0.9,true);
 
     // Step 4: 通过一系列操作,直到找到能够匹配上的关键帧
-    // 为什么搞这么复杂？答：是担心误闭环
+    // 为什么搞这么复杂？答：是担心误闭环。重定位是很严肃的事情，一定要保证是正确的。
     while(nCandidates>0 && !bMatch) // 候选关键帧大于0，并且还没有找到相匹配的关键帧
     {
         //遍历当前所有的候选关键帧
@@ -2157,7 +2158,7 @@ bool Tracking::Relocalization()
             if(!Tcw.empty())
             {
                 //  Step 4.2：如果EPnP 计算出了位姿，对内点进行BA优化
-                Tcw.copyTo(mCurrentFrame.mTcw);
+                Tcw.copyTo(mCurrentFrame.mTcw); // 正常流程就可以结束了，但在重定位要进一步验证
                 
                 // EPnP 里RANSAC后的内点的集合
                 set<MapPoint*> sFound;
@@ -2190,8 +2191,9 @@ bool Tracking::Relocalization()
                 // If few inliers, search by projection in a coarse window and optimize again
                 // Step 4.3：如果内点较少，则通过投影的方式对之前未匹配的点进行匹配，再进行优化求解
                 // 前面的匹配关系是用词袋匹配过程得到的
-                if(nGood<50)
+                if(nGood<50) // 如果大于50个认为重定位成功，如果小于50个，感觉还是有点不靠谱，再检查一下
                 {
+                    // 普通的PNP
                     // 通过投影的方式将关键帧中未匹配的地图点投影到当前帧中, 生成新的匹配
                     int nadditional = matcher2.SearchByProjection(
                         mCurrentFrame,          //当前帧

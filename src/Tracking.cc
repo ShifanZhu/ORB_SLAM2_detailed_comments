@@ -1950,7 +1950,7 @@ void Tracking::UpdateLocalKeyFrames()
         }
 
         // 添加到局部关键帧的列表里
-        mvpLocalKeyFrames.push_back(it->first);
+        mvpLocalKeyFrames.push_back(it->first); // 一级共视关键帧（PDF红色帧）
         
         // 用该关键帧的成员变量mnTrackReferenceForFrame 记录当前帧的id
         // 表示它已经是当前帧的局部关键帧了，可以防止重复添加局部关键帧
@@ -1983,8 +1983,8 @@ void Tracking::UpdateLocalKeyFrames()
                 {
                     mvpLocalKeyFrames.push_back(pNeighKF);
                     pNeighKF->mnTrackReferenceForFrame=mCurrentFrame.mnId;
-                    //? 找到一个就直接跳出for循环？
-                    break;
+                    //? 找到一个就直接跳出for循环？ // 共视程度从高到底，找到最高的那个就行。
+                    break; // 如果去掉break，局部关键帧更多一些
                 }
             }
         }

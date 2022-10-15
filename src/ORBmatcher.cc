@@ -119,7 +119,7 @@ int ORBmatcher::SearchByProjection(Frame &F, const vector<MapPoint*> &vpMapPoint
         int bestIdx =-1 ;
 
         // Get best and second matches with near keypoints
-        // Step 4 寻找候选匹配点中的最佳和次佳匹配点
+        // Step 4 寻找候选匹配点中的最佳和次佳匹配点 （没有用方向进行筛选）
         for(vector<size_t>::const_iterator vit=vIndices.begin(), vend=vIndices.end(); vit!=vend; vit++)
         {
             const size_t idx = *vit;

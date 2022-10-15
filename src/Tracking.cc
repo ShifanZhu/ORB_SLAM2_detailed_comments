@@ -1818,7 +1818,7 @@ void Tracking::SearchLocalPoints()
             th=3;
 
         // If the camera has been relocalised recently, perform a coarser search
-        // 如果不久前进行过重定位，那么进行一个更加宽泛的搜索，阈值需要增大
+        // 如果不久前进行过重定位(之前跟丢了，没那么准了)，那么进行一个更加宽泛的搜索，阈值需要增大
         if(mCurrentFrame.mnId<mnLastRelocFrameId+2)
             th=5;
 

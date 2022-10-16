@@ -578,7 +578,7 @@ float MapPoint::GetMaxDistanceInvariance()
  * 
  * @param[in] currentDist   相机光心距离地图点距离
  * @param[in] pKF           关键帧
- * @return int              预测的金字塔尺度
+ * @return int              预测的金字塔层数
  */
 int MapPoint::PredictScale(const float &currentDist, KeyFrame* pKF)
 {

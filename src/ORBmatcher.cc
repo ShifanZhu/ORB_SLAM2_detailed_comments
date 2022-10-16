@@ -264,6 +264,7 @@ int ORBmatcher::SearchByBoW(KeyFrame* pKF,Frame &F, vector<MapPoint*> &vpMapPoin
 
     // 将0~360的数转换到0~HISTO_LENGTH的系数
     // !原作者代码是 const float factor = 1.0f/HISTO_LENGTH; 是错误的，更改为下面代码  
+    // !影响:弱化了对角度不一致性的错误剔除，导致只有角度差超过30°（本应该是12°）才会被去除
     const float factor = HISTO_LENGTH/360.0f;
 
     // We perform the matching over ORB that belong to the same vocabulary node (at a certain level)
@@ -583,6 +584,7 @@ int ORBmatcher::SearchForInitialization(Frame &F1, Frame &F2, vector<cv::Point2f
         rotHist[i].reserve(500);   
 
     //! 原作者代码是 const float factor = 1.0f/HISTO_LENGTH; 是错误的，更改为下面代码   
+    // !影响:弱化了对角度不一致性的错误剔除，导致只有角度差超过30°（本应该是12°）才会被去除
     const float factor = HISTO_LENGTH/360.0f;
 
     // 匹配点对距离，注意是按照F2特征点数目分配空间
@@ -749,6 +751,7 @@ int ORBmatcher::SearchByBoW(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint *> &
         rotHist[i].reserve(500);
 
     //! 原作者代码是 const float factor = 1.0f/HISTO_LENGTH; 是错误的，更改为下面代码   
+    // !影响:弱化了对角度不一致性的错误剔除，导致只有角度差超过30°（本应该是12°）才会被去除
     const float factor = HISTO_LENGTH/360.0f;
 
     int nmatches = 0;
@@ -916,6 +919,7 @@ int ORBmatcher::SearchForTriangulation(KeyFrame *pKF1, KeyFrame *pKF2, cv::Mat F
         rotHist[i].reserve(500);
 
      //! 原作者代码是 const float factor = 1.0f/HISTO_LENGTH; 是错误的，更改为下面代码   
+    // !影响:弱化了对角度不一致性的错误剔除，导致只有角度差超过30°（本应该是12°）才会被去除
     const float factor = HISTO_LENGTH/360.0f;
 
     // We perform the matching over ORB that belong to the same vocabulary node (at a certain level)
@@ -1027,6 +1031,7 @@ int ORBmatcher::SearchForTriangulation(KeyFrame *pKF1, KeyFrame *pKF2, cv::Mat F
                     vMatches12[idx1]=bestIdx2;      
                     
                     vbMatched2[bestIdx2]=true;  // !记录已经匹配，避免重复匹配。原作者漏掉！
+                                                // !影响：可能导致重复匹配，降低了效率，也可能引入错误匹配，但在后边有各种检验，所以可能会被剔除掉
                     nmatches++;
 
                     // 记录旋转差直方图信息
@@ -1074,6 +1079,7 @@ int ORBmatcher::SearchForTriangulation(KeyFrame *pKF1, KeyFrame *pKF2, cv::Mat F
             for(size_t j=0, jend=rotHist[i].size(); j<jend; j++)
             {              
                 vbMatched2[vMatches12[rotHist[i][j]]] = false;  // !清除匹配关系。原作者漏掉！
+                                                                // !影响：弱化了对角度不一致性的错误剔除，可能引入错误匹配
                 vMatches12[rotHist[i][j]]=-1;
                 nmatches--;
             }
@@ -1157,12 +1163,12 @@ int ORBmatcher::Fuse(KeyFrame *pKF, const vector<MapPoint *> &vpMapPoints, const
         if(!pKF->IsInImage(u,v))
             continue;
 
-        const float ur = u-bf*invz;
+        const float ur = u-bf*invz; // 双目
 
         const float maxDistance = pMP->GetMaxDistanceInvariance();
         const float minDistance = pMP->GetMinDistanceInvariance();
-        cv::Mat PO = p3Dw-Ow;
-        const float dist3D = cv::norm(PO);
+        cv::Mat PO = p3Dw-Ow; // 地图点到相机的距离向量
+        const float dist3D = cv::norm(PO); // 距离
 
         // Depth must be inside the scale pyramid of the image
         // Step 3 地图点到关键帧相机光心距离需满足在有效范围内
@@ -1255,7 +1261,7 @@ int ORBmatcher::Fuse(KeyFrame *pKF, const vector<MapPoint *> &vpMapPoints, const
             MapPoint* pMPinKF = pKF->GetMapPoint(bestIdx);
             if(pMPinKF)
             {
-                // 如果最佳匹配点有对应有效地图点，选择被观测次数最多的那个替换
+                // 如果最佳匹配点有对应有效地图点，选择被观测次数最多的那个替换（观测次数多说明准确）
                 if(!pMPinKF->isBad())
                 {
                     if(pMPinKF->Observations()>pMP->Observations())
@@ -1719,6 +1725,7 @@ int ORBmatcher::SearchByProjection(Frame &CurrentFrame, const Frame &LastFrame, 
         rotHist[i].reserve(500);
 
     //! 原作者代码是 const float factor = 1.0f/HISTO_LENGTH; 是错误的，更改为下面代码
+    // !影响:弱化了对角度不一致性的错误剔除，导致只有角度差超过30°（本应该是12°）才会被去除
     const float factor = HISTO_LENGTH/360.0f;
 
     // Step 2 计算当前帧和前一帧的平移向量

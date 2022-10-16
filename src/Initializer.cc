@@ -351,8 +351,9 @@ void Initializer::FindFundamental(vector<bool> &vbMatchesInliers, float &score, 
 
     // Number of putative matches
 	// 匹配的特征点对总数
-    // const int N = vbMatchesInliers.size();  // !源代码出错！请使用下面代替
-    const int N = mvMatches12.size();
+    // const int N = vbMatchesInliers.size();  // !源代码出错！请使用下面代替 此处会得到0
+    const int N = mvMatches12.size(); // ! 实际上应该是要得到实际匹配的特征点对数目
+                                      // ! 但是后边 const int N = nvMatches12.size();所以误打误撞又改回去了，没有影响
     // Normalize coordinates
     // Step 1 将当前帧和参考帧中的特征点坐标进行归一化，主要是平移和尺度变换
     // 为什么要归一化：

@@ -992,7 +992,9 @@ void Frame::ComputeStereoMatches()
             // 列方向起点 iniu = r0 - 最大窗口滑动范围 - 图像块尺寸
             // 列方向终点 eniu = r0 + 最大窗口滑动范围 + 图像块尺寸 + 1
             // 此次 + 1 和下面的提取图像块是列坐标+1是一样的，保证提取的图像块的宽是2 * w + 1
-            // ! 源码： const float iniu = scaleduR0+L-w; 错误
+            // ! 源码： const float iniu = scaleduR0+L-w; 错误 
+            // ! 原因：滑动窗口边界错误，忘记了图像块的尺寸
+            // ! 影响：可能会导致匹配点对减少
             const float iniu = scaleduR0-L-w;
             const float endu = scaleduR0+L+w+1;
 

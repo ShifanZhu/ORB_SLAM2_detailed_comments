@@ -1113,7 +1113,7 @@ void ORBextractor::ComputeKeyPointsOctTree(
 				//判断坐标是否在图像中
 				//如果初始的列坐标就已经超过了有效的图像边界了，这里的“有效图像”是指原始的、可以提取FAST特征点的图像区域。
                 //并且应该同前面行坐标的边界对应，都为-3
-				//!BUG  正确应该是maxBorderX-3
+				//!BUG  正确应该是maxBorderX-3，会少遍历2行，但影响不大
                 if(iniX>=maxBorderX-6)
                     continue;
 				//如果最大坐标越界那么委屈一下
@@ -1697,7 +1697,8 @@ void ORBextractor::ComputePyramid(cv::Mat image)
 				   0,  						//垂直方向上的缩放系数，留0表示自动计算
 				   cv::INTER_LINEAR);		//图像缩放的差值算法类型，这里的是线性插值算法
 
-            // //!  原代码mvImagePyramid 并未扩充，上面resize应该改为如下
+            //!  原代码mvImagePyramid 并未扩充，上面resize应该改为如下
+            //!  影响：影响图像边缘特征点提取
             // resize(image,	                //输入图像
 			// 	   mvImagePyramid[level], 	//输出图像
 			// 	   sz, 						//输出图像的尺寸
@@ -1733,7 +1734,8 @@ void ORBextractor::ComputePyramid(cv::Mat image)
 						   temp, EDGE_THRESHOLD, EDGE_THRESHOLD, EDGE_THRESHOLD, EDGE_THRESHOLD,
                            BORDER_REFLECT_101);            
         }
-        // //! 原代码mvImagePyramid 并未扩充，应该添加下面一行代码
+        //! 原代码mvImagePyramid 并未扩充，应该添加下面一行代码
+        //! 影响：影响图像边缘特征点提取
         // mvImagePyramid[level] = temp;
     }
 

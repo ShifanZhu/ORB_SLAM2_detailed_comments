@@ -96,7 +96,7 @@ void LocalMapping::Run()
 
             // Triangulate new MapPoints
             // Step 4 当前关键帧与相邻关键帧通过三角化产生新的地图点，使得跟踪更稳
-            CreateNewMapPoints();
+            CreateNewMapPoints(); // 此处新生成的地图点可以与原有地图点有重叠、接近，下边需要融合
 
             // 已经处理完队列中的最后的一个关键帧
             if(!CheckNewKeyFrames())
@@ -107,13 +107,13 @@ void LocalMapping::Run()
             }
 
             // 终止BA的标志
-            mbAbortBA = false;
+            mbAbortBA = false; // 在tracking线程中添加关键帧的地方，如果添加关键帧了要终止当前local BA
 
             // 已经处理完队列中的最后的一个关键帧，并且闭环检测没有请求停止LocalMapping
             if(!CheckNewKeyFrames() && !stopRequested())
             {
                 // Local BA
-                // Step 6 当局部地图中的关键帧大于2个的时候进行局部地图的BA
+                // Step 6 当局部地图中的关键帧大于2个的时候进行局部地图的BA（确保不要那么频繁，毕竟局部BA还是挺耗时的）
                 if(mpMap->KeyFramesInMap()>2)
                     // 注意这里的第二个参数是按地址传递的,当这里的 mbAbortBA 状态发生变化时，能够及时执行/停止BA
                     // 和tracking不一样，此处位姿和地图点都会优化
@@ -121,7 +121,7 @@ void LocalMapping::Run()
 
                 // Check redundant local Keyframes
                 // Step 7 检测并剔除当前帧相邻的关键帧中冗余的关键帧
-                // 冗余的判定：该关键帧的90%的地图点可以被其它关键帧观测到
+                // 冗余的判定：该关键帧的90%的地图点可以被其它关键帧观测到(根据共视程度进行剔除)
                 KeyFrameCulling();
             }
 
@@ -163,6 +163,7 @@ void LocalMapping::Run()
 }
 
 // 插入关键帧,由外部（Tracking）线程调用;这里只是插入到列表中,等待线程主函数对其进行处理
+// 插入关键帧的时候，为了保护mlNewKeyFrames中的数据（因为是共享数据），加锁保护，其他的就不能动这个数据了
 void LocalMapping::InsertKeyFrame(KeyFrame *pKF)
 {
     unique_lock<mutex> lock(mMutexNewKFs);
@@ -663,6 +664,7 @@ void LocalMapping::SearchInNeighbors()
         {
             KeyFrame* pKFi2 = *vit2;
             // 当然这个二级相邻关键帧要求没有和当前关键帧发生融合,并且这个二级相邻关键帧也不是当前关键帧
+            // mnFuseTargetForKF表示这个关键帧是否已经加入了
             if(pKFi2->isBad() || pKFi2->mnFuseTargetForKF==mpCurrentKeyFrame->mnId || pKFi2->mnId==mpCurrentKeyFrame->mnId)
                 continue;
             // 存入二级相邻关键帧    
@@ -920,7 +922,7 @@ void LocalMapping::KeyFrameCulling()
                     // pMP->Observations() 是观测到该地图点的相机总数目（单目1，双目2）
                     if(pMP->Observations()>thObs)
                     {
-                        const int &scaleLevel = pKF->mvKeysUn[i].octave;
+                        const int &scaleLevel = pKF->mvKeysUn[i].octave; // 取出金字塔的层数
                         // Observation存储的是可以看到该地图点的所有关键帧的集合
                         const map<KeyFrame*, size_t> observations = pMP->GetObservations();
 
@@ -929,13 +931,16 @@ void LocalMapping::KeyFrameCulling()
                         for(map<KeyFrame*, size_t>::const_iterator mit=observations.begin(), mend=observations.end(); mit!=mend; mit++)
                         {
                             KeyFrame* pKFi = mit->first;
+                            // pKF： mpCurrentKeyFrame的某一个共视关键帧
+                            // pKFi：observations中的某个关键帧
+                            // 只能是二级相邻关键帧，不能是一级相邻关键帧
                             if(pKFi==pKF)
                                 continue;
                             const int &scaleLeveli = pKFi->mvKeysUn[mit->second].octave;
 
                             // 尺度约束：为什么pKF 尺度+1 要大于等于 pKFi 尺度？
                             // 回答：因为同样或更低金字塔层级的地图点更准确
-                            if(scaleLeveli<=scaleLevel+1)
+                            if(scaleLeveli<=scaleLevel+1) //二级相邻关键帧的估计更准确，后边考虑把当前一级相邻的删除
                             {
                                 nObs++;
                                 // 已经找到3个满足条件的关键帧，就停止不找了
@@ -953,9 +958,9 @@ void LocalMapping::KeyFrameCulling()
             }
         }
 
-        // Step 4：如果该关键帧90%以上的有效地图点被判断为冗余的，则认为该关键帧是冗余的，需要删除该关键帧
+        // Step 4：如果该关键帧90%以上的有效地图点被判断为冗余的，则认为该关键帧是冗余的，需要删除该关键帧（注意此处的pKF是mpCurrentKeyFrame的某一个共视关键帧！！）
         if(nRedundantObservations>0.9*nMPs)
-            pKF->SetBadFlag();
+            pKF->SetBadFlag(); // 注意此处的pKF是mpCurrentKeyFrame的某一个共视关键帧！！
     }
 }
 

@@ -638,13 +638,16 @@ void LoopClosing::CorrectLoop()
     if(isRunningGBA())
     {
         // 如果有全局BA在运行，终止掉，迎接新的全局BA
-        unique_lock<mutex> lock(mMutexGBA);
+        unique_lock<mutex> lock(mMutexGBA); // 因为做闭环矫正会改变关键帧和地图点的位置，所以也要加锁
         mbStopGBA = true;
         // 记录全局BA次数
         mnFullBAIdx++;
         if(mpThreadGBA)
         {
             // 停止全局BA线程
+            // 传统多线程程序中，主线程要等待子线程执行完毕，然后自己才能向下执行
+            // detach: 分离，主线程不再与子线程汇合，不再等待子线程
+            // detach后，子线程和主线程失去联系，驻留在后台，由C++运行时库接管
             mpThreadGBA->detach();
             delete mpThreadGBA;
         }

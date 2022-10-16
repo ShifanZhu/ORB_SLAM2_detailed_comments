@@ -116,6 +116,7 @@ void LocalMapping::Run()
                 // Step 6 当局部地图中的关键帧大于2个的时候进行局部地图的BA
                 if(mpMap->KeyFramesInMap()>2)
                     // 注意这里的第二个参数是按地址传递的,当这里的 mbAbortBA 状态发生变化时，能够及时执行/停止BA
+                    // 和tracking不一样，此处位姿和地图点都会优化
                     Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame,&mbAbortBA, mpMap);
 
                 // Check redundant local Keyframes
@@ -188,7 +189,7 @@ void LocalMapping::ProcessNewKeyFrame()
     {
         unique_lock<mutex> lock(mMutexNewKFs);
         // 取出列表中最前面的关键帧，作为当前要处理的关键帧
-        mpCurrentKeyFrame = mlNewKeyFrames.front();
+        mpCurrentKeyFrame = mlNewKeyFrames.front(); // 最老的关键帧
         // 取出最前面的关键帧后，在原来的列表里删掉该关键帧
         mlNewKeyFrames.pop_front();
     }
@@ -222,7 +223,9 @@ void LocalMapping::ProcessNewKeyFrame()
                 else // this can only happen for new stereo points inserted by the Tracking
                 {
                     // 如果当前帧中已经包含了这个地图点,但是这个地图点中却没有包含这个关键帧的信息
-                    // 这些地图点可能来自双目或RGBD跟踪过程中新生成的地图点，或者是CreateNewMapPoints 中通过三角化产生
+                    // 这些地图点可能来自双目或RGBD模式下在创建关键帧过程（不是跟踪过程）中新生成的地图点。
+                    // 因为恒速模型跟踪过程中新生成的临时地图点并没有建立观测，在跟踪结束之后删掉了。
+                    // 或者是CreateNewMapPoints 中通过三角化产生
                     // 将上述地图点放入mlpRecentAddedMapPoints，等待后续MapPointCulling函数的检验
                     mlpRecentAddedMapPoints.push_back(pMP); 
                 }
@@ -481,12 +484,12 @@ void LocalMapping::CreateNewMapPoints()
             // 匹配点对夹角小，用双目恢复3D点
             else if(bStereo1 && cosParallaxStereo1<cosParallaxStereo2)  
             {
-                // 如果是双目，用视差角更大的那个双目信息来恢复，直接用已知3D点反投影了
+                // 如果是双目，用视差角更大的那个(idx1)双目信息来恢复，直接用已知3D点反投影了
                 x3D = mpCurrentKeyFrame->UnprojectStereo(idx1);                
             }
             else if(bStereo2 && cosParallaxStereo2<cosParallaxStereo1)  
             {
-                x3D = pKF2->UnprojectStereo(idx2);
+                x3D = pKF2->UnprojectStereo(idx2); // idx1视差角更大
             }
             else
                 continue; //No stereo and very low parallax, 放弃

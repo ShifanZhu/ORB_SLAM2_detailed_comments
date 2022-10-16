@@ -445,7 +445,7 @@ void Tracking::Track()
     // Get Map Mutex -> Map cannot be changed
     // 地图更新时加锁。保证地图不会发生变化
     // 疑问:这样子会不会影响地图的实时更新?
-    // 回答：主要耗时在构造帧中特征点的提取和匹配部分,在那个时候地图是没有被上锁的,有足够的时间更新地图
+    // 回答：程序主要耗时在构造帧中特征点的提取和匹配部分,在那个时候地图是没有被上锁的,有足够的时间更新地图
     unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
 
     // Step 1：地图初始化
@@ -492,6 +492,8 @@ void Tracking::Track()
                 // 第一个条件,如果运动模型为空,说明是刚初始化开始，或者已经跟丢了
                 // 第二个条件,如果当前帧紧紧地跟着在重定位的帧的后面，我们将重定位帧来恢复位姿
                 // mnLastRelocFrameId 上一次重定位的那一帧
+                // TrackReferenceKeyFrame应用场景：没有速度信息的时候、刚完成重定位、或者恒速模型跟踪失败后使用，
+                // 大部分时间不用。只用到了参考帧的信息。
                 if(mVelocity.empty() || mCurrentFrame.mnId<mnLastRelocFrameId+2)
                 {
                     // 用最近的关键帧来跟踪当前的普通帧
@@ -501,10 +503,13 @@ void Tracking::Track()
                 }
                 else
                 {
-                    // 用最近的普通帧来跟踪当前的普通帧
-                    // 根据恒速模型设定当前帧的初始位姿
-                    // 通过投影的方式在参考帧中找当前帧特征点的匹配点
-                    // 优化每个特征点所对应3D点的投影误差即可得到位姿
+                    // TrackWithMotionModel应用场景：
+                    // 大部分时间使用这个跟踪，只利用到了上一帧的信息，用最近的普通帧来跟踪当前的普通帧
+                    // Step 1: 根据恒速模型线估计一个当前帧的初始位姿
+                    // Step 2: 用该位姿进行投影的方式在参考帧中进行投影匹配(SearchByProjection)来找当前帧特征点的匹配点，
+                    // 候选点来自GetFeaturesInArea，未使用BoW
+                    // Step 3: 优化每个特征点所对应3D点的投影误差即可得到位姿（BA优化，仅优化位姿，提供比较粗糙的位姿）
+                    // 粗糙指初始位姿
                     bOK = TrackWithMotionModel(); // 普通帧
                     if(!bOK)
                         //根据恒速模型失败了，只能根据参考关键帧来跟踪了...
@@ -515,6 +520,12 @@ void Tracking::Track()
             {
                 // 如果跟踪状态不成功,那么就只能重定位了
                 // BOW搜索，EPnP求解位姿
+                // 应用场景：跟踪丢失的时候使用，很少使用。利用到了相似候选帧的信息。
+                // Step 1: 用BoW先找到与该帧相似的候选关键帧（函数DetectRelocalizationCandidates）
+                // Step 2: 遍历候选关键帧，用SearchByBow快速匹配
+                // Step 3: 匹配点足够的情况下用EPnP计算位姿并取出其中内殿做BA优化（仅优化位姿）
+                // Step 4: 如果优化完内点较少，通过关键帧投影生成新的匹配（函数SearchByProjection）
+                // Step 5: 对匹配结果再做BA优化（仅优化位姿）
                 bOK = Relocalization();
             }
         }
@@ -628,6 +639,8 @@ void Tracking::Track()
         if(!mbOnlyTracking) // 正常VO+mapping状态
         {
             if(bOK)
+                // 应用场景：前面三种跟踪方式得到当前帧地图点后的后处理，每次跟踪都会使用。前提是必须知道当前帧的位姿和地图点（尽管不准确），
+                // 利用到了当前帧的两级共视关键帧的信息，使得位姿更加准确。
                 bOK = TrackLocalMap(); // 更新局部地图
             // 如果前面的两两帧匹配过程进行得不好，这里也就直接放弃了
         }
@@ -1157,6 +1170,8 @@ void Tracking::CheckReplacedInLastFrame()
 
 /*
  * @brief 用参考关键帧的地图点来对当前普通帧进行跟踪
+ * 应用场景：没有速度信息的时候、刚完成重定位、或者恒速模型跟踪失败后使用，大部分时间不用。
+ * 只用到了参考帧的信息。
  * 
  * Step 1：将当前普通帧的描述子转化为BoW向量
  * Step 2：通过词袋BoW加速当前帧与参考帧之间的特征点匹配

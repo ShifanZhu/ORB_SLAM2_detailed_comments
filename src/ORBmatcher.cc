@@ -669,7 +669,7 @@ int ORBmatcher::SearchForInitialization(Frame &F1, Frame &F2, vector<cv::Point2f
                     if(rot<0.0)
                         rot+=360.0f;
                     // 前面factor = HISTO_LENGTH/360.0f // HISTO_LENGTH值为30，所以factor为1/12
-                    // bin = rot / 360.of * HISTO_LENGTH 表示当前rot被分配在第几个直方图bin  
+                    // bin = rot*factor = rot*HISTO_LENGTH/360.0f 表示当前rot被分配在第几个直方图bin  
                     int bin = round(rot*factor);
                     // 如果bin 满了又是一个轮回
                     if(bin==HISTO_LENGTH)

@@ -114,7 +114,7 @@ Tracking::Tracking(
     DistCoef.at<float>(2) = fSettings["Camera.p1"];
     DistCoef.at<float>(3) = fSettings["Camera.p2"];
     const float k3 = fSettings["Camera.k3"];
-    //有些相机的畸变系数中会没有k3项
+    //有些相机的畸变系数中会没有k3项 // 不同的相机去畸变模型
     if(k3!=0)
     {
         DistCoef.resize(5);
@@ -183,7 +183,7 @@ Tracking::Tracking(
     if(sensor==System::STEREO)
         mpORBextractorRight = new ORBextractor(nFeatures,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
 
-    // 在单目初始化的时候，会用mpIniORBextractor来作为特征点提取器
+    // 在单目初始化的时候，会用mpIniORBextractor来作为特征点提取器（初始化要提取更多特征点）
     if(sensor==System::MONOCULAR)       // 单目初始化提取两倍的特征点
         mpIniORBextractor = new ORBextractor(2*nFeatures,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
 
@@ -891,7 +891,7 @@ void Tracking::StereoInitialization()
 void Tracking::MonocularInitialization()
 {
     // Step 1 如果单目初始器还没有被创建，则创建。后面如果重新初始化时会清掉这个
-    if(!mpInitializer)
+    if(!mpInitializer) // 第一帧来的时候构建Initializer然后return，因为需要两帧来做match
     {
         // Set Reference Frame
         // 单目初始帧的特征点数必须大于100
@@ -906,7 +906,7 @@ void Tracking::MonocularInitialization()
             for(size_t i=0; i<mCurrentFrame.mvKeysUn.size(); i++)
                 mvbPrevMatched[i]=mCurrentFrame.mvKeysUn[i].pt;
 
-            // 删除前判断一下，来避免出现段错误。不过在这里是多余的判断
+            // 删除前判断一下，来避免出现段错误。
             // 不过在这里是多余的判断，因为前面已经判断过了
             if(mpInitializer)
                 delete mpInitializer;
@@ -927,7 +927,7 @@ void Tracking::MonocularInitialization()
         // NOTICE 只有连续两帧的特征点个数都大于100时，才能继续进行初始化过程
         if((int)mCurrentFrame.mvKeys.size()<=100)
         {
-            delete mpInitializer;
+            delete mpInitializer; // NOTICE 只有连续两帧的特征点个数都大于100时，才能继续进行初始化过程
             mpInitializer = static_cast<Initializer*>(NULL);
             fill(mvIniMatches.begin(),mvIniMatches.end(),-1);
             return;

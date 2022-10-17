@@ -112,7 +112,7 @@ int main(int argc, char **argv)
 
         // Pass the image to the SLAM system
         // step 4.4 追踪当前图像
-        SLAM.TrackMonocular(im,tframe);
+        SLAM.TrackMonocular(im,tframe); // tracking是程序的主线程
 
         // step 4.5 追踪完成,停止当前帧的图像计时, 并计算追踪耗时
 

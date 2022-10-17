@@ -585,7 +585,7 @@ cv::Mat Initializer::ComputeF21(
  * @param[in] H21                       从参考帧到当前帧的单应矩阵
  * @param[in] H12                       从当前帧到参考帧的单应矩阵
  * @param[in] vbMatchesInliers          匹配好的特征点对的Inliers标记
- * @param[in] sigma                     方差，默认为1
+ * @param[in] sigma                     方差，默认为1 sigma:1.0 iterations:200
  * @return float                        返回得分
  */
 float Initializer::CheckHomography(

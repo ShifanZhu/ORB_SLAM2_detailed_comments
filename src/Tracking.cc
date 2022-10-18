@@ -1095,7 +1095,7 @@ void Tracking::CreateInitialMapMonocular()
     // Step 6 将两帧之间的变换归一化到平均深度1的尺度下
     // Scale initial baseline
     cv::Mat Tc2w = pKFcur->GetPose();
-    // x/z y/z 将z归一化到1 注：其实不是将z归一化到1，只是乘以逆深度
+    // 注：其实不是将z归一化到1，只是乘以逆深度
     Tc2w.col(3).rowRange(0,3) = Tc2w.col(3).rowRange(0,3)*invMedianDepth; // 将平移向量乘以逆深度
     // std::cout << "Tc2w.col(3).rowRange(0,3) = " << Tc2w.col(3).rowRange(0,3).t() << std::endl;
     pKFcur->SetPose(Tc2w);
